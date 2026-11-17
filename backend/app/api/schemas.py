@@ -1,8 +1,12 @@
-from typing import Any, Literal
+from typing import Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.errors import ErrorKind
+from app.themes.registry import THEMES
+
+# Union of every theme's output model, so OpenAPI (and the generated TS types) know each shape.
+ThemeData = Union[tuple(t.Schema for t in THEMES.values())]  # type: ignore[valid-type]
 
 
 class ErrorBody(BaseModel):
@@ -27,9 +31,16 @@ class Meta(BaseModel):
 
 class SuccessEnvelope(BaseModel):
     ok: Literal[True] = True
-    data: Any
+    data: ThemeData
     meta: Meta
 
 
 class Health(BaseModel):
     ok: Literal[True] = True
+
+
+class ThemeInfo(BaseModel):
+    id: str
+    title: str
+    inputHint: str
+    maxInputChars: int
