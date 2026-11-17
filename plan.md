@@ -10,7 +10,7 @@ The theme from the assignment is built **after** this module is done and tested.
 | Topology | Backend and frontend are **separate apps** in one repo, deployed independently. One shared, hosted backend serves every theme |
 | Backend | **FastAPI** + Pydantic v2, Python **3.12** (pinned with `uv`) |
 | Frontend | **React + TypeScript**, Vite |
-| LLM providers | **Gemini** and **Groq**, behind a provider interface. Selected by env var, with an optional fallback. More can be added later |
+| LLM providers | **Gemini** and **Groq** via their **official async SDKs** (`google-genai`, `groq`), behind a provider interface. Selected by env var, with an optional fallback. More can be added later |
 | Hosting | **Render** (backend) and **Vercel** (frontend) |
 | Bad-output strategy | Lenient extraction, strict validation, **one repair retry** that sends the validation errors back to the model |
 | Source of truth | Pydantic schemas on the backend → OpenAPI → generated TS types on the frontend |
@@ -155,10 +155,14 @@ class Provider(Protocol):
                        json_schema: dict, timeout_s: float) -> str: ...   # raw text
 ```
 
-- **Gemini**: REST `generateContent` via `httpx`, with `responseMimeType: "application/json"` and the JSON schema in the generation config.
-- **Groq**: OpenAI-compatible `chat/completions` via `httpx`. Uses `response_format: json_schema` when the model supports it, otherwise `json_object`.
-- **Why raw `httpx` instead of SDKs:** we can explain every line, errors are mapped uniformly, there are fewer dependencies, and timeouts behave the same for every provider.
-- Provider errors are normalized to `ProviderError(status, retry_after, retryable)`.
+- **Gemini**: official `google-genai` SDK (async client, `client.aio.models.generate_content`), with `response_mime_type="application/json"` and the JSON schema in the config.
+- **Groq**: official `groq` SDK (`AsyncGroq`, `chat.completions.create`). Uses `response_format: json_schema` when the model supports it, otherwise `json_object`.
+- **Why SDKs:** they're maintained by the providers, so auth, endpoint and API changes are handled for us, and they're typed.
+- **SDK rules:**
+  1. **Turn off the SDK's built-in retries** (Groq `max_retries=0`; Gemini's retry options off). Retrying, fallback and deadlines belong to our pipeline only.
+  2. Pass our per-call timeout explicitly, and also wrap each call in `asyncio.timeout`.
+  3. Map every SDK exception to `ProviderError(status, retry_after, retryable)` **inside the adapter**. No SDK type leaks out of `providers/`.
+  4. Each adapter returns **raw text** only. We don't use the SDK's own parsed or Pydantic output, so our extraction, validation and repair path always runs and behaves the same for every provider.
 - **Chain:** `LLM_PROVIDER=gemini`, `LLM_FALLBACK=groq` (optional). The fallback runs **only** for provider-level failures (5xx, 429, timeout, network). It never runs for bad output; the repair retry handles that.
 - **Mock provider:** selected per request by the `X-Fault` header. Faults:
   `ok · fenced · prose · truncated · wrong_shape · empty · slow · error_500 · rate_429 · bad_then_ok`.
@@ -307,18 +311,20 @@ VITE_API_URL=http://localhost:8000
 
 ## 7. Build order (each step is a small commit)
 
+Rules for every step: the code is tested before it's committed, there's one meaningful commit (or a few), and `WORKLOG.md` gets a line with the step, the time spent, and what AI was used for.
+
 1. **Backend skeleton**: uv project, config, `/health`, CORS, envelope models, exception handlers, `ErrorKind`.
 2. **Extraction** + pytest fixtures.
 3. **Theme protocol + registry + `echo` theme**, `/themes`.
 4. **Provider protocol + mock provider + faults.**
 5. **Pipeline** with deadline + repair retry, `/generate`, rate limit. pytest for the full matrix.
-6. **Gemini + Groq adapters + fallback chain.** Manual check with real keys.
+6. **Gemini + Groq SDK adapters + fallback chain.** Unit tests for exception mapping (mocked SDK). Manual check with real keys.
 7. **Deploy the backend to Render.** Verify `/health` and the faults remotely.
 8. **Frontend skeleton**: Vite + React + TS, `gen:api`, `api.ts`, envelope guard.
 9. **State machine + `useGenerate`** + Vitest (including the race test).
 10. **UI shell**: input, loading, error, empty, ErrorBoundary, DevFaultPanel, mobile layout.
 11. **Echo View** wired end to end. **Deploy to Vercel**, set CORS, run every fault against production.
-12. README (setup, architecture, AI-usage note, limitations, time spent).
+12. README (setup, architecture, AI-usage note, limitations, time spent). The time and AI-usage figures come from `WORKLOG.md`, which is updated at every step.
 13. *(Next phase)* The real theme from the assignment: a Pydantic schema, a prompt, and a React View with interaction state.
 
 ---
