@@ -51,7 +51,7 @@ Implementation details and decisions are in [plan.md](plan.md).
 5. Truncated JSON is never guessed at. It fails cleanly and goes to repair.
 
 ### 2.3 Provider unreliability
-- Providers (Gemini, Groq) sit behind one interface. The primary and an optional fallback are chosen by env var.
+- Providers (Gemini, Groq, OpenAI) sit behind one interface. The primary and an optional fallback are chosen by env var.
 - The fallback is used only for **provider failures** (5xx, 429, timeout, network), never for bad output.
 - There is a total deadline per request, shared across all attempts.
 - A **mock provider** with fault injection reproduces every failure on demand.

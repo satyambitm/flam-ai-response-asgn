@@ -10,7 +10,7 @@ The theme from the assignment is built **after** this module is done and tested.
 | Topology | Backend and frontend are **separate apps** in one repo, deployed independently. One shared, hosted backend serves every theme |
 | Backend | **FastAPI** + Pydantic v2, Python **3.12** (pinned with `uv`) |
 | Frontend | **React + TypeScript**, Vite |
-| LLM providers | **Gemini** and **Groq** via their **official async SDKs** (`google-genai`, `groq`), behind a provider interface. Selected by env var, with an optional fallback. More can be added later |
+| LLM providers | **Gemini**, **Groq** and **OpenAI** via their **official async SDKs** (`google-genai`, `groq`, `openai`), behind a provider interface. Selected by env var, with an optional fallback. More can be added later |
 | Hosting | **Render** (backend) and **Vercel** (frontend) |
 | Bad-output strategy | Lenient extraction, strict validation, **one repair retry** that sends the validation errors back to the model |
 | Source of truth | Pydantic schemas on the backend → OpenAPI → generated TS types on the frontend |
@@ -58,8 +58,9 @@ The theme from the assignment is built **after** this module is done and tested.
 │  │  │  └─ ratelimit.py      in-memory per-IP limiter
 │  │  ├─ providers/
 │  │  │  ├─ base.py           Provider protocol, ProviderError
-│  │  │  ├─ gemini.py         REST via httpx
-│  │  │  ├─ groq.py           OpenAI-compatible REST via httpx
+│  │  │  ├─ gemini.py         google-genai SDK adapter
+│  │  │  ├─ groq.py           groq SDK adapter
+│  │  │  ├─ openai.py         openai SDK adapter
 │  │  │  ├─ mock.py           fault-injection provider
 │  │  │  └─ factory.py        builds the primary + fallback chain from env
 │  │  └─ themes/
@@ -149,7 +150,7 @@ class Theme(Protocol):
 
 ```python
 class Provider(Protocol):
-    name: str                       # "gemini" | "groq" | "mock"
+    name: str                       # "gemini" | "groq" | "openai" | "mock"
     model: str
     async def generate(self, *, system: str, user: str,
                        json_schema: dict, timeout_s: float) -> str: ...   # raw text
@@ -157,17 +158,18 @@ class Provider(Protocol):
 
 - **Gemini**: official `google-genai` SDK (async client, `client.aio.models.generate_content`), with `response_mime_type="application/json"` and the JSON schema in the config.
 - **Groq**: official `groq` SDK (`AsyncGroq`, `chat.completions.create`). Uses `response_format: json_schema` when the model supports it, otherwise `json_object`.
+- **OpenAI**: official `openai` SDK (`AsyncOpenAI`, `chat.completions.create`) with `response_format: {type: "json_schema", strict: true}`. Strict mode requires every field to be listed as required, so the adapter adapts the Pydantic JSON schema to fit (and falls back to `json_object` if that isn't possible).
 - **Why SDKs:** they're maintained by the providers, so auth, endpoint and API changes are handled for us, and they're typed.
 - **SDK rules:**
-  1. **Turn off the SDK's built-in retries** (Groq `max_retries=0`; Gemini's retry options off). Retrying, fallback and deadlines belong to our pipeline only.
+  1. **Turn off the SDK's built-in retries** (Groq and OpenAI `max_retries=0`; Gemini's retry options off). Retrying, fallback and deadlines belong to our pipeline only.
   2. Pass our per-call timeout explicitly, and also wrap each call in `asyncio.timeout`.
   3. Map every SDK exception to `ProviderError(status, retry_after, retryable)` **inside the adapter**. No SDK type leaks out of `providers/`.
   4. Each adapter returns **raw text** only. We don't use the SDK's own parsed or Pydantic output, so our extraction, validation and repair path always runs and behaves the same for every provider.
-- **Chain:** `LLM_PROVIDER=gemini`, `LLM_FALLBACK=groq` (optional). The fallback runs **only** for provider-level failures (5xx, 429, timeout, network). It never runs for bad output; the repair retry handles that.
+- **Chain:** `LLM_PROVIDER=gemini|groq|openai`, `LLM_FALLBACK=<another provider>` (optional). The fallback runs **only** for provider-level failures (5xx, 429, timeout, network). It never runs for bad output; the repair retry handles that.
 - **Mock provider:** selected per request by the `X-Fault` header. Faults:
   `ok · fenced · prose · truncated · wrong_shape · empty · slow · error_500 · rate_429 · bad_then_ok`.
   `bad_then_ok` returns invalid output on the first call and valid output on the repair call, which demonstrates the repair path. The mock costs nothing, so faults can stay enabled on the deployed demo.
-- Model names come from env vars (`GEMINI_MODEL`, `GROQ_MODEL`). The defaults are checked against each provider's current model list at implementation time.
+- Model names come from env vars (`GEMINI_MODEL`, `GROQ_MODEL`, `OPENAI_MODEL`). The defaults are checked against each provider's current model list at implementation time.
 
 ### 3.5 Extraction (`core/extract.py`)
 
@@ -207,7 +209,7 @@ return SuccessEnvelope(data, meta{attempts, provider, model, latencyMs, repaired
 
 | Control | Value |
 |---|---|
-| API keys | Env only (`GEMINI_API_KEY`, `GROQ_API_KEY`). Never logged, never returned |
+| API keys | Env only (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`). Never logged, never returned |
 | Prompt control | Built only on the server. The client sends `themeId` + `input`, so the endpoint can't be used as an open relay |
 | CORS | `CORS_ORIGINS` allowlist (the Vercel domain and localhost). No `*` |
 | Input cap | `max_input_chars` per theme (default 4000). The request body is also capped |
@@ -274,12 +276,14 @@ type GenState<T> =
 
 **backend/.env.example**
 ```
-LLM_PROVIDER=gemini            # gemini | groq | mock
-LLM_FALLBACK=groq              # optional
+LLM_PROVIDER=gemini            # gemini | groq | openai | mock
+LLM_FALLBACK=groq              # optional; any provider other than the primary
 GEMINI_API_KEY=
 GEMINI_MODEL=
 GROQ_API_KEY=
 GROQ_MODEL=
+OPENAI_API_KEY=
+OPENAI_MODEL=
 CORS_ORIGINS=http://localhost:5173
 ALLOW_FAULTS=true
 RATE_LIMIT_PER_MIN=10
@@ -318,7 +322,7 @@ Rules for every step: the code is tested before it's committed, there's one mean
 3. **Theme protocol + registry + `echo` theme**, `/themes`.
 4. **Provider protocol + mock provider + faults.**
 5. **Pipeline** with deadline + repair retry, `/generate`, rate limit. pytest for the full matrix.
-6. **Gemini + Groq SDK adapters + fallback chain.** Unit tests for exception mapping (mocked SDK). Manual check with real keys.
+6. **Gemini, Groq and OpenAI SDK adapters + fallback chain.** Unit tests for exception mapping (mocked SDK). Manual check with each real key that's available. A provider without a key is simply not configured.
 7. **Deploy the backend to Render.** Verify `/health` and the faults remotely.
 8. **Frontend skeleton**: Vite + React + TS, `gen:api`, `api.ts`, envelope guard.
 9. **State machine + `useGenerate`** + Vitest (including the race test).
