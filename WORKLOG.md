@@ -10,3 +10,4 @@ One line per build step (plan.md §7). Times are wall-clock.
 | 3 | Theme protocol, registry, echo theme, /themes | 0h10 | Claude Code; added `example` to the protocol (shape hint in prompt + mock output) |
 | 4 | Provider protocol, ProviderError, mock provider (11 faults) | 0h10 | Claude Code; added a `timeout` fault (hang) separate from `slow` (delayed success) |
 | 5 | Pipeline (deadline, provider chain, one repair), /generate, per-IP rate limit, full pytest matrix | 0h25 | Claude Code wrote pipeline + 60 tests; I ran a live smoke test of the logs |
+| 6 | Gemini/Groq/OpenAI SDK adapters, fallback chain, exception-mapping tests, live check of all 3 keys | 0h35 | Claude Code; live runs found gemini-2.5-flash retired (404), flash models overloaded, and a Gemini 10s minimum deadline (fixed) |

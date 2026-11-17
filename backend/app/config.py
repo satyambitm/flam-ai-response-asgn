@@ -15,11 +15,11 @@ class Settings(BaseSettings):
     llm_fallback: ProviderName | None = None
 
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash-lite"
     groq_api_key: SecretStr | None = None
-    groq_model: str = "openai/gpt-oss-20b"
+    groq_model: str = "openai/gpt-oss-120b"
     openai_api_key: SecretStr | None = None
-    openai_model: str = "gpt-4.1-mini"
+    openai_model: str = "gpt-5.4-mini"
 
     cors_origins: str = "http://localhost:5173"
     allow_faults: bool = False

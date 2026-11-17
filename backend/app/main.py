@@ -32,6 +32,8 @@ def _compact_validation(exc: RequestValidationError) -> str:
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+    for noisy in ("httpx", "httpx2", "google_genai"):  # one INFO line per HTTP call is noise; we log per request
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     app = FastAPI(title="Structured AI backend", version="0.1.0")
     app.state.settings = settings
@@ -69,12 +71,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "X-Fault"],
     )
     app.include_router(router)
-    log.info(
-        "started provider=%s fallback=%s faults=%s",
-        settings.llm_provider,
-        settings.llm_fallback,
-        settings.allow_faults,
-    )
+    chain = " -> ".join(f"{p.name}:{p.model}" for p in app.state.providers) or "mock"
+    log.info("started chain=%s faults=%s cors=%s", chain, settings.allow_faults, settings.cors_origin_list)
     return app
 
 
