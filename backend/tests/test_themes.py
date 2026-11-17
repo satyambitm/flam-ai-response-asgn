@@ -40,5 +40,6 @@ def test_echo_empty():
 def test_themes_route(client):
     r = client.get("/themes")
     assert r.status_code == 200
-    assert {"id": "echo", "title": "Echo (pipeline test)", "inputHint": THEMES["echo"].input_hint, "maxInputChars": 4000} in r.json()
-
+    echo = THEMES["echo"]
+    expected = {"id": "echo", "title": echo.title, "inputHint": echo.input_hint, "maxInputChars": 4000}
+    assert expected in r.json()

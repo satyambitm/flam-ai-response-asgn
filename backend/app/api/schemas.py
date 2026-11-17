@@ -1,12 +1,18 @@
 from typing import Literal, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.errors import ErrorKind
 from app.themes.registry import THEMES
 
 # Union of every theme's output model, so OpenAPI (and the generated TS types) know each shape.
-ThemeData = Union[tuple(t.Schema for t in THEMES.values())]  # type: ignore[valid-type]
+ThemeData = Union[tuple(t.Schema for t in THEMES.values())]  # type: ignore[valid-type]  # noqa: UP007
+
+
+class GenerateRequest(BaseModel):
+    themeId: str = Field(max_length=64)
+    # Hard cap on the body; the per-theme cap (max_input_chars) is checked in the pipeline.
+    input: str = Field(max_length=20_000)
 
 
 class ErrorBody(BaseModel):

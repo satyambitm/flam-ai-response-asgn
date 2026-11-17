@@ -52,8 +52,15 @@ async def test_timeout_hangs_past_its_budget():
 
 @pytest.mark.parametrize(
     ("status", "timeout", "retryable"),
-    [(None, False, True), (None, True, True), (408, False, True), (429, False, True),
-     (503, False, True), (400, False, False), (401, False, False)],
+    [
+        (None, False, True),
+        (None, True, True),
+        (408, False, True),
+        (429, False, True),
+        (503, False, True),
+        (400, False, False),
+        (401, False, False),
+    ],
 )
 def test_retryable_classification(status, timeout, retryable):
     assert ProviderError("x", status=status, timeout=timeout).retryable is retryable

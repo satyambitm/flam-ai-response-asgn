@@ -5,9 +5,7 @@ class Provider(Protocol):
     name: str
     model: str
 
-    async def generate(
-        self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float
-    ) -> str:
+    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> str:
         """Return the model's raw text. Raise ProviderError for every provider-side failure."""
         ...
 

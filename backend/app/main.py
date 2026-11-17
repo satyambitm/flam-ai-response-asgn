@@ -10,15 +10,15 @@ from app.api.routes import router
 from app.api.schemas import ErrorBody, ErrorEnvelope
 from app.config import Settings, get_settings
 from app.core.errors import AppError, ErrorKind
+from app.core.ratelimit import RateLimiter
+from app.providers.factory import build_providers
 
 log = logging.getLogger("app")
 
 
 def error_response(err: AppError) -> JSONResponse:
     body = ErrorEnvelope(
-        error=ErrorBody(
-            kind=err.kind, message=err.message, retryable=err.retryable, retryAfter=err.retry_after
-        )
+        error=ErrorBody(kind=err.kind, message=err.message, retryable=err.retryable, retryAfter=err.retry_after)
     )
     headers = {"Retry-After": str(err.retry_after)} if err.retry_after else None
     return JSONResponse(body.model_dump(mode="json"), status_code=err.status, headers=headers)
@@ -31,12 +31,12 @@ def _compact_validation(exc: RequestValidationError) -> str:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
-    logging.basicConfig(
-        level=settings.log_level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s"
-    )
+    logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
 
     app = FastAPI(title="Structured AI backend", version="0.1.0")
     app.state.settings = settings
+    app.state.providers = build_providers(settings)
+    app.state.limiter = RateLimiter(settings.rate_limit_per_min)
 
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:

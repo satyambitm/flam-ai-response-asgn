@@ -9,3 +9,4 @@ One line per build step (plan.md §7). Times are wall-clock.
 | 2 | Lenient JSON extraction + bad-output fixtures | 0h10 | Claude Code wrote extractor + tests; tests caught a truncated-fragment bug, fixed |
 | 3 | Theme protocol, registry, echo theme, /themes | 0h10 | Claude Code; added `example` to the protocol (shape hint in prompt + mock output) |
 | 4 | Provider protocol, ProviderError, mock provider (11 faults) | 0h10 | Claude Code; added a `timeout` fault (hang) separate from `slow` (delayed success) |
+| 5 | Pipeline (deadline, provider chain, one repair), /generate, per-IP rate limit, full pytest matrix | 0h25 | Claude Code wrote pipeline + 60 tests; I ran a live smoke test of the logs |
