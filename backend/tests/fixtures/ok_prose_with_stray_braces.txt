@@ -1,0 +1,2 @@
+Use {curly} braces like this:
+{"title": "Plan", "items": [{"text": "a"}]}
