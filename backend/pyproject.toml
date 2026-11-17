@@ -1,0 +1,25 @@
+[project]
+name = "flam-backend"
+version = "0.1.0"
+description = "Generic structured-AI generation backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.165.0",
+    "google-genai>=3.6.1",
+    "groq>=1.7.0",
+    "openai>=3.55.1",
+    "pydantic-settings>=2.16.3",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
