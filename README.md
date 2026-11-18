@@ -39,6 +39,32 @@ cd frontend && npm run check      # tsc + oxlint + prettier + vitest
 
 ---
 
+## The UI
+
+```
+Structured AI   ( Study assistant | Echo )                  Fault injection ▾
+
+┌─ your notes ──────────────┐    Cellular respiration
+│ serif textarea            │    summary…
+│                           │    ( Flashcards 6 | Quiz 4 )
+│                           │    Card 2 of 6, 1 known               ▬ ▬▬ ▬ ▬ ▬
+│ 234 / 4,000    [Generate] │    ┌─ Question ─────────────────────┐┐┐
+└───────────────────────────┘    │ Where does glycolysis occur?   │││ cards ahead
+  sticky on desktop              └────────────────────────────────┘┘┘
+                                 [‹]  [Still learning]  [Got it]  [›]
+                                 Model        Time    Usage
+```
+
+- **Layout:** notes on the left (sticky) and the result on the right from 960 px. Below that it's one column, verified at 360 px with no horizontal scroll.
+- **Palette:** "dusk": a warm dark base with a pale lichen accent for actions and correct answers, ember for "where you are" (current card, focus ring, question numbers), rose for wrong. A full light palette follows `prefers-color-scheme`. All colours are tokens at the top of [`frontend/src/index.css`](frontend/src/index.css).
+- **Type:** Schibsted Grotesk for the interface and Newsreader (serif) for study content: notes, card faces and quiz questions. The scale is a major third on a 16 px base.
+- **Flashcards:** a real 3D flip, with both faces in one grid cell so the card is as tall as its longer side. Offset card edges show how many cards are still ahead. One pip per card shows green when known and ember for the current one. Each new card is keyed so it mounts question-side up and never shows its answer while turning back. Keys: Space flips, ← → move.
+- **Quiz:** lettered options (CSS counters, native radios kept for a11y). After checking, the right and wrong verdicts override the "selected" style, and a tally bar shows one segment per question.
+- **States:** a dashed placeholder before the first request, a skeleton with an elapsed-time counter and Cancel while loading, error cards with Retry or a 429 countdown, and an empty state with a tip.
+- **Accessibility:** visible focus everywhere, a live region that announces each state change, focus moves to the result when a request finishes, aria-labels on the card and icon buttons, and `prefers-reduced-motion` turns off the flip and deal animations.
+
+---
+
 ## Architecture
 
 ### What calls what
@@ -123,6 +149,7 @@ backend/app/
 frontend/src/
   core/                   api.ts, api-types.ts (generated), errors.ts, state.ts, useGenerate.ts, format.ts
   ui/                     Shell, Workspace, InputPanel, LoadingView, ErrorView, EmptyView, ErrorBoundary, DevFaultPanel
+  index.css               design tokens (dark + light), layout, components
   themes/                 registry.ts, study/{state.ts, View.tsx}, echo/View.tsx
 ```
 
@@ -166,7 +193,7 @@ Every successful response carries the usage summed over **every model call in th
   - `gemini-3.5-flash-lite` $0.30 / $2.50
 - For an unknown model, `costUsd` is `null` rather than a guess. On a free-tier key the real charge is $0; the figure is what the same usage costs at list price.
 - The mock reports no usage (`usage: null`).
-- **The UI shows it** under each result: `groq · openai/gpt-oss-120b · 3.0s · 989 in · 970 out tokens · $0.000730`.
+- **The UI shows it** in a footer under each result: Model `groq / openai/gpt-oss-120b`, Time `3.0 s`, Usage `989 in · 970 out tokens · $0.000730`, plus an `auto-repaired` badge when the repair retry was used.
 
 Typical cost of one study set: about $0.0007 (Groq), $0.0013 (Gemini), $0.003 (OpenAI).
 
@@ -211,6 +238,8 @@ Frontend console: one line per request.
 | `TOTAL_TIMEOUT_S` / `PROVIDER_TIMEOUT_S` | `40` / `25` | |
 
 Frontend: `VITE_API_URL` (default `http://localhost:8000`).
+
+**Choosing the model is server-side only.** `LLM_PROVIDER`, `LLM_FALLBACK` and `*_MODEL` decide what every request uses. The client can't choose a provider or model: that keeps cost under the operator's control, and the endpoint can't be used to reach an arbitrary model on our keys. The UI shows which provider and model answered in the result footer. The only per-request switch is the dev **Fault injection** dropdown, which routes to the mock provider and only when `ALLOW_FAULTS=true`.
 
 ## Deploy
 
