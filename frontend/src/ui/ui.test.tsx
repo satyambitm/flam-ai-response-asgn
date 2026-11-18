@@ -118,7 +118,14 @@ describe("LoadingView", () => {
 
 describe("Workspace", () => {
   const THEME = { id: "echo", title: "Echo", inputHint: "Type here", maxInputChars: 100 };
-  const META = { attempts: 2, provider: "mock", model: "mock-ok", latencyMs: 1200, repaired: true };
+  const META = {
+    attempts: 2,
+    provider: "mock",
+    model: "mock-ok",
+    latencyMs: 1200,
+    repaired: true,
+    usage: { inputTokens: 300, outputTokens: 60, costUsd: 0.0005 },
+  };
   const Echo = defineView<components["schemas"]["EchoData"]>(({ data }) => <h3>{data.title}</h3>);
 
   async function submit(text = "notes") {
@@ -132,6 +139,7 @@ describe("Workspace", () => {
     await submit();
     expect(await screen.findByRole("heading", { name: "My list" })).toBeInTheDocument();
     expect(screen.getByText("auto-repaired")).toBeInTheDocument();
+    expect(screen.getByText(/300 in · 60 out tokens · \$0\.000500/)).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Result" })).toHaveFocus();
   });
 

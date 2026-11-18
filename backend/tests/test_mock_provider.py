@@ -11,7 +11,7 @@ EXAMPLE = {"title": "t", "items": [{"text": "a"}]}
 
 async def call(fault: Fault, *, timeout_s: float = 1.0, provider: MockProvider | None = None) -> str:
     provider = provider or MockProvider(fault, EXAMPLE, slow_s=0.01)
-    return await provider.generate(system="s", user="u", json_schema={}, timeout_s=timeout_s)
+    return (await provider.generate(system="s", user="u", json_schema={}, timeout_s=timeout_s)).text
 
 
 @pytest.mark.parametrize("fault", [Fault.OK, Fault.FENCED, Fault.PROSE, Fault.SLOW])

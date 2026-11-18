@@ -106,7 +106,9 @@ GET  /themes    → 200 [{ id, title, inputHint, maxInputChars }]
 POST /generate  body: { themeId: string, input: string }
                 header (optional, only when ALLOW_FAULTS=true): X-Fault: <fault>
 
-  200 → { ok: true,  data: <theme schema>, meta: { attempts, provider, model, latencyMs, repaired } }
+  200 → { ok: true,  data: <theme schema>,
+          meta: { attempts, provider, model, latencyMs, repaired,
+                  usage: { inputTokens, outputTokens, costUsd } | null } }
   4xx/5xx → { ok: false, error: { kind, message, retryable, retryAfter? } }
 ```
 
@@ -153,7 +155,7 @@ class Provider(Protocol):
     name: str                       # "gemini" | "groq" | "openai" | "mock"
     model: str
     async def generate(self, *, system: str, user: str,
-                       json_schema: dict, timeout_s: float) -> str: ...   # raw text
+                       json_schema: dict, timeout_s: float) -> Completion: ...   # raw text + Usage | None
 ```
 
 - **Gemini**: official `google-genai` SDK (async client, `client.aio.models.generate_content`), with `response_mime_type="application/json"` and the JSON schema in the config.
@@ -164,7 +166,7 @@ class Provider(Protocol):
   1. **Turn off the SDK's built-in retries** (Groq and OpenAI `max_retries=0`; Gemini's retry options off). Retrying, fallback and deadlines belong to our pipeline only.
   2. Pass our per-call timeout explicitly, and also wrap each call in `asyncio.timeout`.
   3. Map every SDK exception to `ProviderError(status, retry_after, retryable)` **inside the adapter**. No SDK type leaks out of `providers/`.
-  4. Each adapter returns **raw text** only. We don't use the SDK's own parsed or Pydantic output, so our extraction, validation and repair path always runs and behaves the same for every provider.
+  4. Each adapter returns **raw text** plus the provider-reported token usage (`Completion`). We don't use the SDK's own parsed or Pydantic output, so our extraction, validation and repair path always runs and behaves the same for every provider.
 - **Chain:** `LLM_PROVIDER=gemini|groq|openai`, `LLM_FALLBACK=<another provider>` (optional). The fallback runs **only** for provider-level failures (5xx, 429, timeout, network). It never runs for bad output; the repair retry handles that.
 - **Mock provider:** selected per request by the `X-Fault` header. Faults:
   `ok · fenced · prose · truncated · wrong_shape · empty · slow · error_500 · rate_429 · bad_then_ok`.
@@ -203,6 +205,7 @@ return SuccessEnvelope(data, meta{attempts, provider, model, latencyMs, repaired
 ```
 
 - Pydantic errors are compacted to `path: message` lines (e.g. `days.2.stops: field required`) so the repair prompt stays small.
+- `meta.usage` sums input/output tokens over **every** model call in the request (repair included); `costUsd` uses the list-price table in `core/pricing.py` and is `null` for unknown models. The mock reports no usage.
 - Every attempt is logged with the theme, provider, attempt number, outcome and latency. Inputs and outputs are not logged by default.
 
 ### 3.7 Security and limits

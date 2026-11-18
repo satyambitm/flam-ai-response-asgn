@@ -3,7 +3,7 @@ import type { Result } from "./api";
 import { type GenAction, type GenState, genReducer, initialState } from "./state";
 
 type D = { v: number };
-const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 1, repaired: false };
+const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 1, repaired: false, usage: null };
 const ok = (v: number): Result<D> => ({ ok: true, data: { v }, meta: META });
 const fail = (kind: "timeout" | "empty" | "aborted" | "network"): Result<D> => ({
   ok: false,

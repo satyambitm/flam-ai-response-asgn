@@ -5,6 +5,7 @@ import { type AppError, clientError, isServerErrorKind } from "./errors";
 
 type Schemas = components["schemas"];
 export type Meta = Schemas["Meta"];
+export type Usage = Schemas["UsageMeta"];
 export type ThemeInfo = Schemas["ThemeInfo"];
 export type Fault = Schemas["Fault"];
 export type ThemeData = Schemas["SuccessEnvelope"]["data"];
@@ -84,7 +85,17 @@ function isMeta(x: unknown): x is Meta {
     typeof x.provider === "string" &&
     typeof x.model === "string" &&
     typeof x.latencyMs === "number" &&
-    typeof x.repaired === "boolean"
+    typeof x.repaired === "boolean" &&
+    (x.usage === null || isUsage(x.usage))
+  );
+}
+
+function isUsage(x: unknown): x is Usage {
+  return (
+    isObj(x) &&
+    typeof x.inputTokens === "number" &&
+    typeof x.outputTokens === "number" &&
+    (x.costUsd === null || typeof x.costUsd === "number")
   );
 }
 

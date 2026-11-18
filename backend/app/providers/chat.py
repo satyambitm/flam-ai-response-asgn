@@ -3,7 +3,7 @@
 from types import ModuleType
 from typing import Any
 
-from app.providers.base import ProviderError, parse_retry_after
+from app.providers.base import Completion, ProviderError, Usage, parse_retry_after
 
 
 class ChatCompletionsProvider:
@@ -17,7 +17,7 @@ class ChatCompletionsProvider:
     def response_format(self, json_schema: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> str:
+    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> Completion:
         sdk = self._sdk
         try:
             resp = await self._client.chat.completions.create(
@@ -29,14 +29,18 @@ class ChatCompletionsProvider:
         except sdk.APIStatusError as e:
             failed = _failed_generation(e.body)
             if failed is not None:
-                return failed  # server-side schema check failed: still output, so our repair path handles it
+                return Completion(
+                    failed
+                )  # server-side schema check failed: still output, so our repair path handles it
             retry_after = parse_retry_after(e.response.headers.get("retry-after"))
             raise ProviderError(f"{self.name}: {e.message[:160]}", status=e.status_code, retry_after=retry_after) from e
         except sdk.APITimeoutError as e:
             raise ProviderError(f"{self.name} timed out", timeout=True) from e
         except sdk.APIError as e:  # connection errors and anything else from the SDK
             raise ProviderError(f"{self.name} transport: {type(e).__name__}") from e
-        return resp.choices[0].message.content or ""
+        u = resp.usage
+        usage = Usage(u.prompt_tokens, u.completion_tokens) if u else None
+        return Completion(resp.choices[0].message.content or "", usage)
 
 
 def _failed_generation(body: object) -> str | None:

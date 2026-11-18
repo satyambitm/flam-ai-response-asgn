@@ -9,7 +9,7 @@ import pytest
 from google.genai import errors as gerrors
 
 from app.config import Settings
-from app.providers.base import ProviderError
+from app.providers.base import ProviderError, Usage
 from app.providers.factory import build_providers
 from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider
@@ -38,12 +38,12 @@ def chat_provider(cls, result):
     return p, fake
 
 
-def completion(text: str | None):
-    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
+def completion(text: str | None, usage=None):
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))], usage=usage)
 
 
 async def call(p) -> str:
-    return await p.generate(system="sys", user="usr", json_schema=SCHEMA, timeout_s=3)
+    return (await p.generate(system="sys", user="usr", json_schema=SCHEMA, timeout_s=3)).text
 
 
 def status_error(sdk, status: int, headers: dict | None = None, body: object = None):
@@ -141,7 +141,7 @@ def gemini_provider(result):
 
 
 async def test_gemini_success_and_config():
-    p, fake = gemini_provider(SimpleNamespace(text='{"a": 1}'))
+    p, fake = gemini_provider(SimpleNamespace(text='{"a": 1}', usage_metadata=None))
     assert await call(p) == '{"a": 1}'
     config = fake.kwargs["config"]
     assert config.response_mime_type == "application/json"
@@ -195,3 +195,20 @@ def test_factory_missing_fallback_key_disables_fallback():
 def test_factory_ignores_fallback_equal_to_primary_and_blank():
     assert len(build_providers(settings(llm_provider="groq", llm_fallback="groq", groq_api_key="a"))) == 1
     assert len(build_providers(settings(llm_provider="groq", llm_fallback="", groq_api_key="a"))) == 1
+
+
+# --- usage ---
+
+
+@pytest.mark.parametrize("cls", [GroqProvider, OpenAIProvider])
+async def test_chat_reports_usage(cls):
+    p, _ = chat_provider(cls, completion("{}", SimpleNamespace(prompt_tokens=120, completion_tokens=30)))
+    result = await p.generate(system="s", user="u", json_schema=SCHEMA, timeout_s=3)
+    assert result.usage == Usage(120, 30)
+
+
+async def test_gemini_usage_counts_thinking_as_output():
+    meta = SimpleNamespace(prompt_token_count=100, candidates_token_count=20, thoughts_token_count=50)
+    p, _ = gemini_provider(SimpleNamespace(text="{}", usage_metadata=meta))
+    result = await p.generate(system="s", user="u", json_schema=SCHEMA, timeout_s=3)
+    assert result.usage == Usage(100, 70)

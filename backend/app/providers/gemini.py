@@ -3,7 +3,7 @@ from typing import Any
 from google import genai
 from google.genai import errors, types
 
-from app.providers.base import ProviderError, parse_retry_after
+from app.providers.base import Completion, ProviderError, Usage, parse_retry_after
 
 # attempts=1 disables both tenacity retries and the SDK's implicit connection-error retry.
 _NO_RETRY = types.HttpRetryOptions(attempts=1)
@@ -18,7 +18,7 @@ class GeminiProvider:
         self.model = model
         self._client = genai.Client(api_key=api_key, http_options=types.HttpOptions(retry_options=_NO_RETRY))
 
-    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> str:
+    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> Completion:
         config = types.GenerateContentConfig(
             system_instruction=system,
             response_mime_type="application/json",
@@ -35,7 +35,14 @@ class GeminiProvider:
             ) from e
         except Exception as e:  # transport layer (httpx/aiohttp): timeouts, DNS, resets
             raise ProviderError(f"gemini transport: {type(e).__name__}", timeout=_is_timeout(e)) from e
-        return resp.text or ""
+        return Completion(resp.text or "", _usage(resp.usage_metadata))
+
+
+def _usage(m: types.GenerateContentResponseUsageMetadata | None) -> Usage | None:
+    if m is None:
+        return None
+    # Thinking tokens are billed as output.
+    return Usage(m.prompt_token_count or 0, (m.candidates_token_count or 0) + (m.thoughts_token_count or 0))
 
 
 def _retry_delay(e: errors.APIError) -> int | None:

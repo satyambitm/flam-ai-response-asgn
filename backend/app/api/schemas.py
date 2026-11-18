@@ -27,12 +27,21 @@ class ErrorEnvelope(BaseModel):
     error: ErrorBody
 
 
+class UsageMeta(BaseModel):
+    """Summed over every model call in the request, repair attempt included."""
+
+    inputTokens: int
+    outputTokens: int
+    costUsd: float | None  # None when a model has no known price or a call didn't report usage
+
+
 class Meta(BaseModel):
     attempts: int
     provider: str
     model: str
     latencyMs: int
     repaired: bool
+    usage: UsageMeta | None  # None when no call reported usage (e.g. the mock provider)
 
 
 class SuccessEnvelope(BaseModel):

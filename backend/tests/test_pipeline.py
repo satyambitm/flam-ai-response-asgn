@@ -4,7 +4,7 @@ import pytest
 
 from app.core import pipeline
 from app.core.errors import AppError, ErrorKind
-from app.providers.base import ProviderError
+from app.providers.base import Completion, ProviderError, Usage
 from app.providers.mock import Fault, MockProvider
 from app.themes.registry import THEMES
 
@@ -15,17 +15,18 @@ GOOD = json.dumps(ECHO.example)
 class Scripted:
     """Returns (or raises) the scripted items in order and records every call."""
 
-    def __init__(self, *script: str | ProviderError, name: str = "scripted"):
-        self.name, self.model = name, f"{name}-model"
+    def __init__(self, *script: str | ProviderError, name: str = "scripted", model: str = "", usage=None):
+        self.name, self.model = name, model or f"{name}-model"
+        self._usage = usage
         self._script = list(script)
         self.calls: list[dict] = []
 
-    async def generate(self, **kwargs) -> str:
+    async def generate(self, **kwargs) -> Completion:
         self.calls.append(kwargs)
         item = self._script.pop(0)
         if isinstance(item, ProviderError):
             raise item
-        return item
+        return Completion(item, self._usage)
 
 
 def mock(fault: Fault) -> MockProvider:
@@ -144,3 +145,19 @@ async def test_system_prompt_embeds_schema_and_example():
     system = p.calls[0]["system"]
     assert '"items"' in system and "Buy groceries" in system
     assert p.calls[0]["json_schema"] == ECHO.Schema.model_json_schema()
+
+
+async def test_usage_is_summed_across_repair_and_priced():
+    p = Scripted('{"title": "x"}', GOOD, model="gpt-5.4-mini", usage=Usage(1000, 200))
+    u = (await run([p])).meta.usage
+    assert (u.inputTokens, u.outputTokens) == (2000, 400)
+    assert u.costUsd == pytest.approx((2000 * 0.75 + 400 * 4.50) / 1e6)
+
+
+async def test_usage_unknown_model_has_tokens_but_no_cost():
+    env = await run([Scripted(GOOD, model="some-new-model", usage=Usage(10, 5))])
+    assert env.meta.usage.model_dump() == {"inputTokens": 10, "outputTokens": 5, "costUsd": None}
+
+
+async def test_usage_absent_when_not_reported():
+    assert (await run([mock(Fault.OK)])).meta.usage is None

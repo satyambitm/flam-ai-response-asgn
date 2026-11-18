@@ -15,3 +15,4 @@ One line per build step (plan.md §7). Times are wall-clock.
 | 8 | Frontend skeleton: Vite + React + TS, generated API types, never-throwing api client + envelope guard | 0h20 | Claude Code; openapi-typescript needs TS5 while Vite ships TS7, so gen:api runs via npx in isolation |
 | 9 | GenState reducer + useGenerate (abort + requestId guard) + reducer/race/cancel/unmount tests | 0h20 | Claude Code; strengthened the race test so it exercises the requestId check, not just the status check |
 | 10 | UI shell: input, loading (cold-start hint), error (per kind, 429 countdown), empty, ErrorBoundary, DevFaultPanel, mobile CSS + UI tests | 0h35 | Claude Code; lint flagged setState-in-effect twice, refactored to derived state |
+| 10b | Per-response token usage + cost (summed over repair/fallback calls), shown in UI and logs | 0h25 | Claude Code; prices from public pricing pages (Nov 2026), verified live against all 3 providers |

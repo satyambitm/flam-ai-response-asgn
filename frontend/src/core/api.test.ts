@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchThemes, generate } from "./api";
 
-const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 5, repaired: false };
+const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 5, repaired: false, usage: null };
 const OK = { ok: true, data: { title: "t", items: [] }, meta: META };
 const ERR = { ok: false, error: { kind: "rate_limited", message: "busy", retryable: true, retryAfter: 7 } };
 
@@ -53,6 +53,7 @@ describe("generate", () => {
     ["not an object", [1, 2]],
     ["missing ok", { data: {} }],
     ["success without meta", { ok: true, data: {} }],
+    ["meta with broken usage", { ...OK, meta: { ...META, usage: { inputTokens: "1" } } }],
     ["unknown error kind", { ok: false, error: { kind: "weird", message: "x", retryable: true } }],
     ["bad retryAfter", { ok: false, error: { kind: "timeout", message: "x", retryable: true, retryAfter: "7" } }],
   ])("rejects a broken envelope (%s)", async (_, body) => {

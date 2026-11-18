@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import * as api from "./api";
+import { formatUsage } from "./format";
 import type { Fault, Result, ThemeData } from "./api";
 import { type GenState, genReducer, initialState } from "./state";
 
@@ -63,8 +64,9 @@ function logOutcome(themeId: string, id: number, result: Result<ThemeData>, ms: 
   const tag = `[generate #${id}] ${themeId}`;
   if (dropped) return console.debug(`${tag} superseded or cancelled after ${ms}ms; result dropped`);
   if (result.ok) {
-    const { provider, model, attempts, repaired } = result.meta;
-    return console.info(`${tag} ok ${ms}ms ${provider}/${model} attempts=${attempts}${repaired ? " repaired" : ""}`);
+    const { provider, model, attempts, repaired, usage } = result.meta;
+    const extra = `attempts=${attempts}${repaired ? " repaired" : ""} · ${formatUsage(usage)}`;
+    return console.info(`${tag} ok ${ms}ms ${provider}/${model} ${extra}`);
   }
   console.warn(`${tag} ${result.error.kind} ${ms}ms: ${result.error.message}`);
 }

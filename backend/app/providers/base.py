@@ -1,4 +1,19 @@
+from dataclasses import dataclass
 from typing import Any, Protocol
+
+
+@dataclass(frozen=True)
+class Usage:
+    """Token counts as reported by the provider (output includes any reasoning/thinking tokens)."""
+
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass(frozen=True)
+class Completion:
+    text: str
+    usage: Usage | None = None  # None when the provider didn't report it (mock, failed-schema output)
 
 
 class Provider(Protocol):

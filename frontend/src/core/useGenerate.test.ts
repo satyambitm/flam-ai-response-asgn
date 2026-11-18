@@ -5,7 +5,7 @@ import { useGenerate } from "./useGenerate";
 
 vi.mock("./api", async (orig) => ({ ...(await orig<typeof import("./api")>()), generate: vi.fn() }));
 
-const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 1, repaired: false };
+const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 1, repaired: false, usage: null };
 const ok = (title: string): api.Result<api.ThemeData> => ({ ok: true, data: { title, items: [] }, meta: META });
 
 /** A controllable api.generate call: resolve it whenever the test wants, ignoring abort (already in flight). */

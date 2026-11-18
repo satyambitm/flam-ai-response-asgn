@@ -5,7 +5,7 @@ import json
 from enum import StrEnum
 from typing import Any
 
-from app.providers.base import ProviderError
+from app.providers.base import Completion, ProviderError
 
 
 class Fault(StrEnum):
@@ -33,7 +33,10 @@ class MockProvider:
         self._slow_s = slow_s
         self._calls = 0
 
-    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> str:
+    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> Completion:
+        return Completion(await self._text(timeout_s))
+
+    async def _text(self, timeout_s: float) -> str:
         self._calls += 1
         match self.fault:
             case Fault.OK:

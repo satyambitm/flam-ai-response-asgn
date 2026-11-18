@@ -134,6 +134,7 @@ export interface components {
             latencyMs: number;
             /** Repaired */
             repaired: boolean;
+            usage: components["schemas"]["UsageMeta"] | null;
         };
         /** SuccessEnvelope */
         SuccessEnvelope: {
@@ -156,6 +157,18 @@ export interface components {
             inputHint: string;
             /** Maxinputchars */
             maxInputChars: number;
+        };
+        /**
+         * UsageMeta
+         * @description Summed over every model call in the request, repair attempt included.
+         */
+        UsageMeta: {
+            /** Inputtokens */
+            inputTokens: number;
+            /** Outputtokens */
+            outputTokens: number;
+            /** Costusd */
+            costUsd: number | null;
         };
     };
     responses: never;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { Fault, ThemeInfo } from "../core/api";
 import { ERROR_TITLES } from "../core/errors";
+import { formatUsage } from "../core/format";
 import type { GenState } from "../core/state";
 import { useGenerate } from "../core/useGenerate";
 import type { ThemeView } from "../themes/registry";
@@ -44,7 +45,8 @@ export function Workspace({ theme, View, fault }: Props) {
         {state.status === "success" && (
           <>
             <p className="meta">
-              {state.meta.provider} · {state.meta.model} · {(state.meta.latencyMs / 1000).toFixed(1)}s
+              {state.meta.provider} · {state.meta.model} · {(state.meta.latencyMs / 1000).toFixed(1)}s ·{" "}
+              {formatUsage(state.meta.usage)}
               {state.meta.repaired && <span className="badge">auto-repaired</span>}
             </p>
             <ErrorBoundary resetKey={state.requestId} onRetry={retry}>

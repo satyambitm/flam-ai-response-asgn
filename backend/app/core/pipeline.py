@@ -9,11 +9,12 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from app.api.schemas import Meta, SuccessEnvelope
+from app.api.schemas import Meta, SuccessEnvelope, UsageMeta
 from app.core.deadline import Deadline
 from app.core.errors import AppError, ErrorKind
 from app.core.extract import ExtractError, extract_json
-from app.providers.base import Provider, ProviderError
+from app.core.pricing import cost_usd
+from app.providers.base import Completion, Provider, ProviderError
 from app.themes.base import Theme
 
 log = logging.getLogger("app.pipeline")
@@ -33,9 +34,39 @@ class BadOutput(AppError):
 
 
 class _Run:
-    """Per-request mutable state, so the failure log line can report attempts too."""
+    """Per-request tally over every model call (repair included), so failures are reported too."""
 
-    attempts = 0
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.input_tokens = self.output_tokens = 0
+        self.cost = 0.0
+        self.reported = False  # at least one call reported usage
+        self.priced = True  # every call reported usage for a model with a known price
+
+    def add(self, provider: Provider, completion: Completion) -> None:
+        if completion.usage is None:
+            self.priced = False
+            return
+        self.reported = True
+        self.input_tokens += completion.usage.input_tokens
+        self.output_tokens += completion.usage.output_tokens
+        cost = cost_usd(provider.model, completion.usage)
+        if cost is None:
+            self.priced = False
+        else:
+            self.cost += cost
+
+    def usage(self) -> UsageMeta | None:
+        if not self.reported:
+            return None
+        cost = round(self.cost, 8) if self.priced else None
+        return UsageMeta(inputTokens=self.input_tokens, outputTokens=self.output_tokens, costUsd=cost)
+
+    def describe(self) -> str:
+        if not self.reported:
+            return "tokens=n/a"
+        cost = f"${self.cost:.6f}" if self.priced else "n/a"
+        return f"tokens={self.input_tokens}in/{self.output_tokens}out cost={cost}"
 
 
 async def generate(
@@ -46,17 +77,25 @@ async def generate(
     try:
         envelope = await _generate(theme, user_input, chain, Deadline(total_s), provider_s, run)
     except AppError as err:
-        log.info("generate theme=%s failed kind=%s attempts=%d %dms", theme.id, err.kind, run.attempts, _ms(started))
+        log.info(
+            "generate theme=%s failed kind=%s attempts=%d %s %dms",
+            theme.id,
+            err.kind,
+            run.attempts,
+            run.describe(),
+            _ms(started),
+        )
         raise
     m = envelope.meta
     m.latencyMs = _ms(started)
     log.info(
-        "generate theme=%s ok provider=%s model=%s attempts=%d repaired=%s %dms",
+        "generate theme=%s ok provider=%s model=%s attempts=%d repaired=%s %s %dms",
         theme.id,
         m.provider,
         m.model,
         m.attempts,
         m.repaired,
+        run.describe(),
         m.latencyMs,
     )
     return envelope
@@ -77,8 +116,9 @@ async def _generate(
 
     async def attempt(user: str) -> tuple[BaseModel, Provider]:
         run.attempts += 1
-        raw, provider = await _call_chain(chain, system, user, schema, deadline, provider_s)
-        return _parse(raw, theme.Schema), provider
+        completion, provider = await _call_chain(chain, system, user, schema, deadline, provider_s)
+        run.add(provider, completion)
+        return _parse(completion.text, theme.Schema), provider
 
     try:
         data, provider = await attempt(prompt.user)
@@ -93,13 +133,20 @@ async def _generate(
     data = theme.normalize(data)
     if theme.is_empty(data):
         raise AppError(ErrorKind.EMPTY, "Nothing useful could be generated from that text. Try adding more detail.")
-    meta = Meta(attempts=run.attempts, provider=provider.name, model=provider.model, latencyMs=0, repaired=repaired)
+    meta = Meta(
+        attempts=run.attempts,
+        provider=provider.name,
+        model=provider.model,
+        latencyMs=0,
+        repaired=repaired,
+        usage=run.usage(),
+    )
     return SuccessEnvelope(data=data, meta=meta)
 
 
 async def _call_chain(
     chain: Sequence[Provider], system: str, user: str, schema: dict[str, Any], deadline: Deadline, provider_s: float
-) -> tuple[str, Provider]:
+) -> tuple[Completion, Provider]:
     """Try each provider in order. Fall through only on retryable provider failures."""
     failures: list[ProviderError] = []
     for provider in chain:
@@ -109,8 +156,8 @@ async def _call_chain(
         started = time.monotonic()
         try:
             async with asyncio.timeout(budget):
-                raw = await provider.generate(system=system, user=user, json_schema=schema, timeout_s=budget)
-            return raw, provider
+                completion = await provider.generate(system=system, user=user, json_schema=schema, timeout_s=budget)
+            return completion, provider
         except TimeoutError:
             err = ProviderError(f"no response within {budget:.1f}s", timeout=True)
         except ProviderError as e:
