@@ -1,0 +1,9 @@
+{
+  "name": "flam-structured-ai",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix frontend install",
+    "start": "npm --prefix frontend run dev",
+    "test": "npm --prefix frontend test && cd backend && uv run pytest -q"
+  }
+}

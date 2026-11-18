@@ -12,3 +12,4 @@ One line per build step (plan.md §7). Times are wall-clock.
 | 5 | Pipeline (deadline, provider chain, one repair), /generate, per-IP rate limit, full pytest matrix | 0h25 | Claude Code wrote pipeline + 60 tests; I ran a live smoke test of the logs |
 | 6 | Gemini/Groq/OpenAI SDK adapters, fallback chain, exception-mapping tests, live check of all 3 keys | 0h35 | Claude Code; live runs found gemini-2.5-flash retired (404), flash models overloaded, and a Gemini 10s minimum deadline (fixed) |
 | 7 | Render blueprint (render.yaml); Render build + start command verified locally in a clean 3.12 venv | 0h10 | Claude Code; no Render CLI/login here, so the one-click Blueprint deploy is left to the account owner |
+| 8 | Frontend skeleton: Vite + React + TS, generated API types, never-throwing api client + envelope guard | 0h20 | Claude Code; openapi-typescript needs TS5 while Vite ships TS7, so gen:api runs via npx in isolation |
