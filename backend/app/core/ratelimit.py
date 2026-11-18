@@ -1,8 +1,11 @@
+import logging
 import math
 import time
 from collections import deque
 
 from app.core.errors import AppError, ErrorKind
+
+log = logging.getLogger("app.ratelimit")
 
 _WINDOW_S = 60.0
 _SWEEP_EVERY = 1000
@@ -27,5 +30,6 @@ class RateLimiter:
             hits.popleft()
         if len(hits) >= self._limit:
             wait = math.ceil(_WINDOW_S - (now - hits[0]))
+            log.info("rate limited client=%s retry_after=%ds", key, wait)
             raise AppError(ErrorKind.RATE_LIMITED, f"Too many requests. Try again in {wait}s.", retry_after=wait)
         hits.append(now)
