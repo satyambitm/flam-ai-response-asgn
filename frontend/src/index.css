@@ -311,3 +311,52 @@ p {
     animation: none;
   }
 }
+
+/* shared list styles for theme views */
+
+button.link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.checklist {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.checklist label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.checklist label.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.checklist input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.checklist li button {
+  min-width: 40px;
+  padding: 0;
+}
