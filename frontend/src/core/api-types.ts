@@ -106,6 +106,18 @@ export interface components {
          * @enum {string}
          */
         Fault: "ok" | "fenced" | "prose" | "truncated" | "wrong_shape" | "empty" | "slow" | "timeout" | "error_500" | "rate_429" | "bad_then_ok";
+        /** Flashcard */
+        Flashcard: {
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+            /** Front */
+            front: string;
+            /** Back */
+            back: string;
+        };
         /** GenerateRequest */
         GenerateRequest: {
             /** Themeid */
@@ -136,6 +148,39 @@ export interface components {
             repaired: boolean;
             usage: components["schemas"]["UsageMeta"] | null;
         };
+        /** QuizQuestion */
+        QuizQuestion: {
+            /**
+             * Id
+             * @default
+             */
+            id: string;
+            /** Question */
+            question: string;
+            /** Options */
+            options: string[];
+            /** Answerindex */
+            answerIndex: number;
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+        };
+        /** StudySet */
+        StudySet: {
+            /** Topic */
+            topic: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Flashcards */
+            flashcards: components["schemas"]["Flashcard"][];
+            /** Quiz */
+            quiz: components["schemas"]["QuizQuestion"][];
+        };
         /** SuccessEnvelope */
         SuccessEnvelope: {
             /**
@@ -144,7 +189,8 @@ export interface components {
              * @constant
              */
             ok: true;
-            data: components["schemas"]["EchoData"];
+            /** Data */
+            data: components["schemas"]["StudySet"] | components["schemas"]["EchoData"];
             meta: components["schemas"]["Meta"];
         };
         /** ThemeInfo */

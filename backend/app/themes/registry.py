@@ -1,9 +1,11 @@
 from app.core.errors import AppError, ErrorKind
 from app.themes.base import Theme
 from app.themes.echo import EchoTheme
+from app.themes.study import StudyTheme
 
 # Adding a theme = one theme module + one entry here.
-THEMES: dict[str, Theme] = {t.id: t for t in (EchoTheme(),)}
+# Order is display order; the first is the default.
+THEMES: dict[str, Theme] = {t.id: t for t in (StudyTheme(), EchoTheme())}
 
 
 def get_theme(theme_id: str) -> Theme:

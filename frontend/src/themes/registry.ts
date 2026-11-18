@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { ThemeData } from "../core/api";
 import { EchoView } from "./echo/View";
+import { StudyView } from "./study/View";
 
 export type ThemeView = ComponentType<{ data: ThemeData }>;
 
@@ -14,5 +15,6 @@ export function defineView<T extends ThemeData>(view: ComponentType<{ data: T }>
 
 // Adding a theme = one View + one entry here. Themes without a View aren't shown.
 export const VIEWS: Record<string, ThemeView> = {
+  study: defineView(StudyView),
   echo: defineView(EchoView),
 };

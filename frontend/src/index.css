@@ -360,3 +360,106 @@ button.link {
   min-width: 40px;
   padding: 0;
 }
+
+/* study theme */
+
+.study .tabs {
+  margin: 12px 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.flashcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 180px;
+  padding: 24px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  text-align: center;
+  transition: background 0.2s;
+}
+
+.flashcard.flipped {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.flashcard-side,
+.flashcard-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flashcard-text {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.quiz ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.quiz li {
+  margin-bottom: 16px;
+}
+
+.quiz fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quiz legend {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  margin-bottom: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.option input {
+  accent-color: var(--accent);
+}
+
+.option.correct {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+.option.wrong {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.explanation {
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.score {
+  margin: 0;
+  font-weight: 700;
+}
