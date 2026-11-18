@@ -1,20 +1,25 @@
 # Worklog
 
-One line per build step (plan.md §7). Times are wall-clock.
+One line per build step (plan.md §7). Times are wall-clock, taken from commit timestamps (2026-11-19/20).
+They measure the AI-assisted build session only. Reading the assignment, deciding the design, and reviewing the result happened outside these windows and are not counted here.
 
-| Step | What | Time | AI usage |
-|---|---|---|---|
-| 0 | Problem analysis, plan.md, main-problem.md | 1h00 | Claude Code drafted the docs from my decisions; I chose the stack and split |
-| 1 | Backend skeleton: config, /health, CORS, envelope, exception handlers | 0h10 | Claude Code wrote code + tests from plan.md |
-| 2 | Lenient JSON extraction + bad-output fixtures | 0h10 | Claude Code wrote extractor + tests; tests caught a truncated-fragment bug, fixed |
-| 3 | Theme protocol, registry, echo theme, /themes | 0h10 | Claude Code; added `example` to the protocol (shape hint in prompt + mock output) |
-| 4 | Provider protocol, ProviderError, mock provider (11 faults) | 0h10 | Claude Code; added a `timeout` fault (hang) separate from `slow` (delayed success) |
-| 5 | Pipeline (deadline, provider chain, one repair), /generate, per-IP rate limit, full pytest matrix | 0h25 | Claude Code wrote pipeline + 60 tests; I ran a live smoke test of the logs |
-| 6 | Gemini/Groq/OpenAI SDK adapters, fallback chain, exception-mapping tests, live check of all 3 keys | 0h35 | Claude Code; live runs found gemini-2.5-flash retired (404), flash models overloaded, and a Gemini 10s minimum deadline (fixed) |
-| 7 | Render blueprint (render.yaml); Render build + start command verified locally in a clean 3.12 venv | 0h10 | Claude Code; no Render CLI/login here, so the one-click Blueprint deploy is left to the account owner |
-| 8 | Frontend skeleton: Vite + React + TS, generated API types, never-throwing api client + envelope guard | 0h20 | Claude Code; openapi-typescript needs TS5 while Vite ships TS7, so gen:api runs via npx in isolation |
-| 9 | GenState reducer + useGenerate (abort + requestId guard) + reducer/race/cancel/unmount tests | 0h20 | Claude Code; strengthened the race test so it exercises the requestId check, not just the status check |
-| 10 | UI shell: input, loading (cold-start hint), error (per kind, 429 countdown), empty, ErrorBoundary, DevFaultPanel, mobile CSS + UI tests | 0h35 | Claude Code; lint flagged setState-in-effect twice, refactored to derived state |
-| 10b | Per-response token usage + cost (summed over repair/fallback calls), shown in UI and logs | 0h25 | Claude Code; prices from public pricing pages (Nov 2026), verified live against all 3 providers |
-| 11 | Echo View wired end to end; every fault + CORS + limiter + real Groq call verified over HTTP; prod build + key scan clean | 0h30 | Claude Code; browser automation blocked by extension site permissions on every site, so UI states rely on component tests; Vercel deploy waits on the Render URL |
-| 13 | Study assistant theme: schema with semantic answerIndex check, prompt, normalize/is_empty; flashcards (flip, known, review-unknown) + quiz (check, score, retry wrong) | 0h45 | Claude Code; live-checked answers for correctness on all 3 providers |
+| Step | What | Commit time | Took | AI usage / notes |
+|---|---|---|---|---|
+| 0 | Problem analysis, main-problem.md, plan.md | 23:25–23:45 | ~20m (+ earlier discussion) | Claude Code drafted docs from my decisions (FE/BE split, FastAPI, SDKs, providers) |
+| 1 | Backend skeleton: config, /health, CORS, envelope, exception handlers | 23:51 | ~6m | Claude Code wrote code + tests |
+| 2 | Lenient JSON extraction + bad-output fixtures | 23:52 | ~2m | Tests caught a truncated-fragment bug; fixed before commit |
+| 3 | Theme protocol, registry, echo theme, /themes | 23:53 | ~1m | Added `example` to the protocol (shape hint in prompt + mock output) |
+| 4 | Provider protocol, mock provider (11 faults) | 23:53 | <1m | Added a `timeout` fault (hang) separate from `slow` |
+| 5 | Pipeline (deadline, chain, one repair), /generate, rate limit | 23:57 | ~4m | Live smoke test of the logs |
+| 6 | Gemini/Groq/OpenAI SDK adapters + fallback chain | 00:06 | ~9m | Live runs found gemini-2.5-flash retired, flash models overloaded, Gemini's 10s minimum deadline (fixed) |
+| 7 | Render blueprint; build + start verified in a clean venv | 00:07 | ~1m | No Render CLI/login here; one-click deploy left to the account owner |
+| 8 | Frontend skeleton, generated API types, api client | 00:13 | ~6m | openapi-typescript needs TS5 (Vite ships TS7), so gen:api runs via npx |
+| 9 | Reducer + useGenerate + race tests | 00:15 | ~2m | Race test strengthened to exercise the requestId check |
+| 10 | UI shell + UI tests | 00:18 | ~3m | Lint flagged setState-in-effect twice; refactored |
+| — | LF line-ending normalization | 00:20 | ~2m | Mixed CRLF/LF from Windows tooling |
+| 10b | Token usage + cost per response (meta, UI, logs) | 00:22 | ~2m | Prices from public pricing pages; verified live on all 3 providers |
+| 11 | Echo View end to end; every fault + CORS + limiter verified over HTTP | 00:36 | ~14m | Browser automation blocked by extension permissions |
+| 13 | Study assistant theme | 00:43 | ~7m | Live-checked quiz answers for correctness on all 3 providers |
+| 12 | README | 00:50 | ~7m | |
+
+**Build session total: ~1h25m** (23:25 → ~00:50).
