@@ -47,7 +47,7 @@ export function Workspace({ theme, View, fault }: Props) {
             <p className="meta">
               {state.meta.provider} · {state.meta.model} · {(state.meta.latencyMs / 1000).toFixed(1)}s ·{" "}
               {formatUsage(state.meta.usage)}
-              {state.meta.repaired && <span className="badge">auto-repaired</span>}
+              {state.meta.repaired && <span className="badge"> auto-repaired</span>}
             </p>
             <ErrorBoundary resetKey={state.requestId} onRetry={retry}>
               <View key={state.requestId} data={state.data} />
