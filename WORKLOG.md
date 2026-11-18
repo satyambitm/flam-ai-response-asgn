@@ -21,5 +21,6 @@ They measure the AI-assisted build session only. Reading the assignment, decidin
 | 11 | Echo View end to end; every fault + CORS + limiter verified over HTTP | 00:36 | ~14m | Browser automation blocked by extension permissions |
 | 13 | Study assistant theme | 00:43 | ~7m | Live-checked quiz answers for correctness on all 3 providers |
 | 12 | README | 00:50 | ~7m | |
+| 14 | UI redesign: dusk palette, 3D flashcard deck, quiz verdicts, two-pane layout | 01:07 | ~12m | Browser-verified with Claude in Chrome (desktop, 360px, light/dark); found and fixed verdict-vs-selected specificity and mobile control wrap |
 
 **Build session total: ~1h25m** (23:25 → ~00:50).

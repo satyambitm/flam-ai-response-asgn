@@ -87,7 +87,7 @@ describe("StudyView", () => {
     await userEvent.click(screen.getByRole("button", { name: /Question: Powerhouse\?/ }));
     expect(screen.getByText("Mitochondria")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Got it" }));
-    expect(screen.getByText("Card 2 of 3 · 1 known")).toBeInTheDocument();
+    expect(screen.getByText("Card 2 of 3, 1 known")).toBeInTheDocument();
   });
 
   it("takes the quiz, shows the score and retries the wrong one", async () => {

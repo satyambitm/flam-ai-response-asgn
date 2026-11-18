@@ -28,7 +28,7 @@ export function Workspace({ theme, View, fault }: Props) {
   }, [settledId]);
 
   return (
-    <>
+    <div className="workspace">
       <InputPanel
         hint={theme.inputHint}
         maxChars={theme.maxInputChars}
@@ -38,24 +38,43 @@ export function Workspace({ theme, View, fault }: Props) {
         {announce(state)}
       </p>
       <section ref={resultRef} tabIndex={-1} className="result" aria-label="Result">
-        {state.status === "idle" && <p className="muted placeholder">Your result will appear here.</p>}
+        {state.status === "idle" && (
+          <p className="placeholder">Paste your text and choose Generate. The result appears here.</p>
+        )}
         {state.status === "loading" && <LoadingView startedAt={state.startedAt} onCancel={cancel} />}
         {state.status === "error" && <ErrorView key={state.requestId} error={state.error} onRetry={retry} />}
         {state.status === "empty" && <EmptyView message={state.message} onRetry={retry} />}
         {state.status === "success" && (
           <>
-            <p className="meta">
-              {state.meta.provider} · {state.meta.model} · {(state.meta.latencyMs / 1000).toFixed(1)}s ·{" "}
-              {formatUsage(state.meta.usage)}
-              {state.meta.repaired && <span className="badge"> auto-repaired</span>}
-            </p>
             <ErrorBoundary resetKey={state.requestId} onRetry={retry}>
               <View key={state.requestId} data={state.data} />
             </ErrorBoundary>
+            <dl className="meta">
+              <div>
+                <dt>Model</dt>
+                <dd>
+                  {state.meta.provider} / {state.meta.model}
+                </dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{(state.meta.latencyMs / 1000).toFixed(1)} s</dd>
+              </div>
+              <div>
+                <dt>Usage</dt>
+                <dd>{formatUsage(state.meta.usage)}</dd>
+              </div>
+              {state.meta.repaired && (
+                <div>
+                  <dt className="visually-hidden">Output</dt>
+                  <dd className="badge">auto-repaired</dd>
+                </div>
+              )}
+            </dl>
           </>
         )}
       </section>
-    </>
+    </div>
   );
 }
 

@@ -22,7 +22,7 @@ export function InputPanel({ hint, maxChars, onSubmit }: Props) {
   };
 
   return (
-    <form className="input-panel" onSubmit={submit}>
+    <form className="composer" onSubmit={submit}>
       <label htmlFor={id} className="visually-hidden">
         Your text
       </label>
@@ -32,20 +32,23 @@ export function InputPanel({ hint, maxChars, onSubmit }: Props) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={hint}
-        rows={6}
+        rows={8}
         aria-invalid={tooLong}
         aria-describedby={`${id}-count`}
+        aria-keyshortcuts="Control+Enter Meta+Enter"
       />
-      <div className="input-row">
+      <div className="composer-bar">
         <span id={`${id}-count`} className={tooLong ? "counter over" : "counter"}>
           {length.toLocaleString()} / {maxChars.toLocaleString()}
-          {tooLong && " · too long"}
+          {tooLong && ", too long"}
+        </span>
+        <span className="kbd-hint" aria-hidden="true">
+          <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd>
         </span>
         <button type="submit" className="primary" disabled={!canSubmit}>
           Generate
         </button>
       </div>
-      <p className="kbd-hint">Ctrl/⌘ + Enter to submit</p>
     </form>
   );
 }

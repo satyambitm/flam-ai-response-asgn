@@ -5,10 +5,12 @@ export function StudyView({ data }: { data: StudySet }) {
   const [state, dispatch] = useReducer(studyReducer, data, initStudy);
 
   return (
-    <article className="card study">
-      <h2>{data.topic}</h2>
-      {data.summary && <p className="muted">{data.summary}</p>}
-      <div className="tabs" role="tablist" aria-label="Study mode">
+    <article className="study">
+      <header className="study-head">
+        <h2>{data.topic}</h2>
+        {data.summary && <p>{data.summary}</p>}
+      </header>
+      <div className="segmented" role="tablist" aria-label="Study mode">
         <ModeTab mode="cards" state={state} dispatch={dispatch} label={`Flashcards (${data.flashcards.length})`} />
         <ModeTab mode="quiz" state={state} dispatch={dispatch} label={`Quiz (${data.quiz.length})`} />
       </div>
@@ -34,7 +36,7 @@ function ModeTab({ mode, label, state, dispatch }: Omit<Part, "data"> & { mode: 
       type="button"
       role="tab"
       aria-selected={active}
-      className={active ? "tab active" : "tab"}
+      className={active ? "segment active" : "segment"}
       onClick={() => dispatch({ type: "mode", mode })}
     >
       {label}
@@ -48,6 +50,7 @@ function Flashcards({ data, state, dispatch }: Part) {
 
   const card = byId.get(state.deck[state.index])!;
   const knownInDeck = state.deck.filter((id) => state.known.has(id)).length;
+  const ahead = Math.min(2, state.deck.length - state.index - 1);
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "ArrowRight") dispatch({ type: "move", by: 1 });
     if (e.key === "ArrowLeft") dispatch({ type: "move", by: -1 });
@@ -55,26 +58,51 @@ function Flashcards({ data, state, dispatch }: Part) {
 
   return (
     <div className="flashcards" onKeyDown={onKeyDown}>
-      <p className="muted" aria-live="polite">
-        Card {state.index + 1} of {state.deck.length} · {knownInDeck} known
-      </p>
-      <button
-        type="button"
-        className={state.flipped ? "flashcard flipped" : "flashcard"}
-        onClick={() => dispatch({ type: "flip" })}
-        aria-label={
-          state.flipped
-            ? `Answer: ${card.back}. Click to show question.`
-            : `Question: ${card.front}. Click to reveal answer.`
-        }
-      >
-        <span className="flashcard-side">{state.flipped ? "Answer" : "Question"}</span>
-        <span className="flashcard-text">{state.flipped ? card.back : card.front}</span>
-        <span className="flashcard-hint">{state.flipped ? "tap to see question" : "tap to reveal"}</span>
-      </button>
-      <div className="row">
-        <button type="button" onClick={() => dispatch({ type: "move", by: -1 })} disabled={state.index === 0}>
-          ← Prev
+      <div className="deck-status">
+        <p aria-live="polite">
+          Card {state.index + 1} of {state.deck.length}, {knownInDeck} known
+        </p>
+        <ol className="pips" aria-hidden="true">
+          {state.deck.map((id, i) => (
+            <li
+              key={id}
+              className={[state.known.has(id) && "known", i === state.index && "current"].filter(Boolean).join(" ")}
+            />
+          ))}
+        </ol>
+      </div>
+      <div className="stack" data-ahead={ahead}>
+        {/* keyed by card so a new card mounts face-up instead of rotating back and showing its answer */}
+        <button
+          key={card.id}
+          type="button"
+          className={state.flipped ? "flashcard flipped" : "flashcard"}
+          onClick={() => dispatch({ type: "flip" })}
+          aria-label={
+            state.flipped
+              ? `Answer: ${sentence(card.back)} Click to show question.`
+              : `Question: ${sentence(card.front)} Click to reveal answer.`
+          }
+        >
+          <span className="face front">
+            <span className="face-side">Question</span>
+            <span className="face-text">{card.front}</span>
+          </span>
+          <span className="face back">
+            <span className="face-side">Answer</span>
+            <span className="face-text">{card.back}</span>
+          </span>
+        </button>
+      </div>
+      <div className="deck-controls">
+        <button
+          type="button"
+          className="icon"
+          aria-label="Previous card"
+          onClick={() => dispatch({ type: "move", by: -1 })}
+          disabled={state.index === 0}
+        >
+          <Chevron flip />
         </button>
         <button type="button" onClick={() => dispatch({ type: "mark", known: false })}>
           Still learning
@@ -84,13 +112,18 @@ function Flashcards({ data, state, dispatch }: Part) {
         </button>
         <button
           type="button"
+          className="icon"
+          aria-label="Next card"
           onClick={() => dispatch({ type: "move", by: 1 })}
           disabled={state.index === state.deck.length - 1}
         >
-          Next →
+          <Chevron />
         </button>
       </div>
-      <div className="row">
+      <p className="kbd-hint">
+        <kbd>Space</kbd> flips the card, <kbd>←</kbd> <kbd>→</kbd> move between cards
+      </p>
+      <div className="deck-links">
         <button
           type="button"
           className="link"
@@ -109,6 +142,19 @@ function Flashcards({ data, state, dispatch }: Part) {
   );
 }
 
+/** "Where?" stays as is, "Mitochondria" becomes "Mitochondria." so the label never reads "Where?." */
+function sentence(text: string): string {
+  return /[.?!]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`;
+}
+
+function Chevron({ flip = false }: { flip?: boolean }) {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" className={flip ? "mirrored" : undefined}>
+      <path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Quiz({ data, state, dispatch }: Part) {
   const byId = useMemo(() => new Map(data.quiz.map((q) => [q.id, q])), [data]);
   if (!state.round.length) return <p className="muted">No quiz questions in this set. Try the flashcards.</p>;
@@ -119,7 +165,7 @@ function Quiz({ data, state, dispatch }: Part) {
 
   return (
     <div className="quiz">
-      {retrying && <p className="muted">Retrying {state.round.length} question(s) you missed.</p>}
+      {retrying && <p className="muted">Retrying the {state.round.length} you missed.</p>}
       <ol>
         {state.round.map((id) => {
           const q = byId.get(id)!;
@@ -151,21 +197,31 @@ function Quiz({ data, state, dispatch }: Part) {
         })}
       </ol>
       {state.checked ? (
-        <div className="row">
+        <div className="quiz-footer">
+          <ol className="tally" aria-hidden="true">
+            {state.round.map((id) => (
+              <li key={id} className={wrong.includes(id) ? "wrong" : "correct"} />
+            ))}
+          </ol>
           <p className="score" role="status">
             Score: {state.round.length - wrong.length} / {state.round.length}
           </p>
-          {wrong.length > 0 && (
-            <button type="button" className="primary" onClick={() => dispatch({ type: "retryWrong" })}>
-              Retry {wrong.length} wrong
+          <div className="actions">
+            {wrong.length > 0 && (
+              <button type="button" className="primary" onClick={() => dispatch({ type: "retryWrong" })}>
+                Retry {wrong.length} wrong
+              </button>
+            )}
+            <button type="button" onClick={() => dispatch({ type: "restartQuiz" })}>
+              Restart quiz
             </button>
-          )}
-          <button type="button" onClick={() => dispatch({ type: "restartQuiz" })}>
-            Restart quiz
-          </button>
+          </div>
         </div>
       ) : (
-        <div className="row">
+        <div className="quiz-footer">
+          <span className="muted">
+            {answered} of {state.round.length} answered
+          </span>
           <button
             type="button"
             className="primary"
@@ -174,9 +230,6 @@ function Quiz({ data, state, dispatch }: Part) {
           >
             Check answers
           </button>
-          <span className="muted">
-            {answered} / {state.round.length} answered
-          </span>
         </div>
       )}
     </div>
