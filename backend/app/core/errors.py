@@ -9,6 +9,7 @@ class ErrorKind(StrEnum):
     MALFORMED = "malformed"
     INVALID_SHAPE = "invalid_shape"
     EMPTY = "empty"
+    BLOCKED = "blocked"
     INTERNAL = "internal"
 
 
@@ -20,6 +21,7 @@ HTTP_STATUS: dict[ErrorKind, int] = {
     ErrorKind.MALFORMED: 502,
     ErrorKind.INVALID_SHAPE: 502,
     ErrorKind.EMPTY: 422,
+    ErrorKind.BLOCKED: 422,
     ErrorKind.INTERNAL: 500,
 }
 
@@ -39,4 +41,4 @@ class AppError(Exception):
 
     @property
     def retryable(self) -> bool:
-        return self.kind is not ErrorKind.INPUT
+        return self.kind not in (ErrorKind.INPUT, ErrorKind.BLOCKED)

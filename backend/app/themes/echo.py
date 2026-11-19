@@ -27,7 +27,8 @@ class EchoTheme:
 
     def build_prompt(self, user_input: str) -> Prompt:
         return Prompt(
-            system="Turn the user's text into a short title and its key points, each under 15 words.",
+            system="Turn the user's text into a short title and its key points, each under 15 words. "
+            "If there is nothing to summarise, return an empty items list.",
             user=user_input,
         )
 

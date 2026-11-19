@@ -13,6 +13,13 @@ router = APIRouter()
 _ERRORS = {code: {"model": ErrorEnvelope} for code in (422, 429, 500, 502, 504)}
 
 
+def client_ip(request: Request) -> str:
+    header = request.app.state.settings.client_ip_header
+    if header and (ip := request.headers.get(header, "").strip()):
+        return ip
+    return request.client.host if request.client else "unknown"
+
+
 @router.get("/health")
 def health() -> Health:
     return Health()
@@ -37,7 +44,7 @@ async def generate(
     body: GenerateRequest, request: Request, x_fault: Annotated[Fault | None, Header()] = None
 ) -> SuccessEnvelope:
     state = request.app.state
-    state.limiter.check(request.client.host if request.client else "unknown")
+    state.limiter.check(client_ip(request))
     theme = get_theme(body.themeId)
     chain = chain_for(state.settings, state.providers, theme, x_fault, body.providerId)
     return await pipeline.generate(

@@ -10,7 +10,7 @@ from google.genai import errors as gerrors
 
 from app.config import Settings
 from app.core.errors import AppError, ErrorKind
-from app.providers.base import ProviderError, Usage
+from app.providers.base import MAX_OUTPUT_TOKENS, ProviderError, Usage
 from app.providers.factory import build_providers, chain_for
 from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider
@@ -60,6 +60,7 @@ async def test_chat_success_and_request_shape(cls):
     p, fake = chat_provider(cls, completion('{"a": 1}'))
     assert await call(p) == '{"a": 1}'
     assert fake.kwargs["timeout"] == 3
+    assert fake.kwargs["max_completion_tokens"] == MAX_OUTPUT_TOKENS
     assert fake.kwargs["messages"][0] == {"role": "system", "content": "sys"}
     assert fake.kwargs["response_format"]["type"] == "json_schema"
 
@@ -149,6 +150,7 @@ async def test_gemini_success_and_config():
     assert config.response_mime_type == "application/json"
     assert config.response_json_schema == SCHEMA
     assert config.system_instruction == "sys"
+    assert config.max_output_tokens == MAX_OUTPUT_TOKENS
     assert config.http_options.timeout == 10_000  # Gemini's minimum; asyncio.timeout enforces our 3s
     assert config.http_options.retry_options.attempts == 1
 

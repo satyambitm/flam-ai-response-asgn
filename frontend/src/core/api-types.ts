@@ -117,7 +117,7 @@ export interface components {
          * ErrorKind
          * @enum {string}
          */
-        ErrorKind: "input" | "rate_limited" | "provider" | "timeout" | "malformed" | "invalid_shape" | "empty" | "internal";
+        ErrorKind: "input" | "rate_limited" | "provider" | "timeout" | "malformed" | "invalid_shape" | "empty" | "blocked" | "internal";
         /**
          * Fault
          * @enum {string}

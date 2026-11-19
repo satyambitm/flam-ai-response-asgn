@@ -20,6 +20,7 @@ const SERVER_KINDS: Record<ServerErrorKind, true> = {
   malformed: true,
   invalid_shape: true,
   empty: true,
+  blocked: true,
   internal: true,
 };
 
@@ -48,6 +49,7 @@ export const ERROR_TITLES: Record<ErrorKind, string> = {
   malformed: "The AI's answer was unreadable",
   invalid_shape: "The AI's answer was incomplete",
   empty: "Nothing useful came back",
+  blocked: "Not something this tool does",
   internal: "Something broke on our side",
   network: "You seem to be offline",
   bad_response: "Unexpected server response",

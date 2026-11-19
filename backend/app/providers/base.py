@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+# Caps the bill for one call (reasoning tokens included). A full study set is about 3k; longer output is
+# an attack or a runaway, and gets cut off, fails to parse and goes through repair like any truncation.
+MAX_OUTPUT_TOKENS = 8192
+
 
 @dataclass(frozen=True)
 class Usage:
@@ -20,7 +24,7 @@ class Provider(Protocol):
     name: str
     model: str
 
-    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> str:
+    async def generate(self, *, system: str, user: str, json_schema: dict[str, Any], timeout_s: float) -> Completion:
         """Return the model's raw text. Raise ProviderError for every provider-side failure."""
         ...
 

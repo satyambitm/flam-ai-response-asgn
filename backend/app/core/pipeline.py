@@ -1,4 +1,4 @@
-"""validate input → prompt → provider chain → extract → validate → (one repair) → normalize → empty check."""
+"""clean input → prompt → provider chain → extract → guard → validate → (one repair) → normalize → empty check."""
 
 import asyncio
 import json
@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from app.api.schemas import Meta, SuccessEnvelope, UsageMeta
+from app.core import guard
 from app.core.deadline import Deadline
 from app.core.errors import AppError, ErrorKind
 from app.core.extract import ExtractError, extract_json
@@ -22,6 +23,7 @@ log = logging.getLogger("app.pipeline")
 REPAIR_MIN_LEFT_S = 5.0
 MAX_REPAIR_ERRORS = 10
 MAX_ECHOED_OUTPUT = 4000
+BLOCKED_MESSAGE = "That request can't be answered here. Paste study material or name a topic to work on."
 
 
 class BadOutput(AppError):
@@ -104,30 +106,42 @@ async def generate(
 async def _generate(
     theme: Theme, user_input: str, chain: Sequence[Provider], deadline: Deadline, provider_s: float, run: _Run
 ) -> SuccessEnvelope:
-    text = user_input.strip()
+    text = guard.clean(user_input).strip()
     if not text:
         raise AppError(ErrorKind.INPUT, "Please enter some text first.")
     if len(text) > theme.max_input_chars:
         raise AppError(ErrorKind.INPUT, f"Input is too long ({len(text)} of {theme.max_input_chars} characters).")
 
+    if found := guard.flags(text):
+        log.warning("input flagged %s; handled as material", ",".join(found))  # the input itself is never logged
+
     prompt = theme.build_prompt(text)
     schema = theme.Schema.model_json_schema()
-    system = _system_prompt(prompt.system, schema, theme.example)
+    marker = guard.new_marker()
+    system = _system_prompt(prompt.system, schema, theme.example, marker)
+    user = guard.wrap(prompt.user)
 
     async def attempt(user: str) -> tuple[BaseModel, Provider]:
         run.attempts += 1
         completion, provider = await _call_chain(chain, system, user, schema, deadline, provider_s)
         run.add(provider, completion)
-        return _parse(completion.text, theme.Schema), provider
+        value = _extract(completion.text)
+        if guard.leaks(guard.strings(value), marker, prompt.system + guard.RULES, text):
+            log.warning("output blocked: it recites the instructions (provider=%s)", provider.name)
+            raise AppError(ErrorKind.BLOCKED, BLOCKED_MESSAGE)
+        value, removed = guard.strip_foreign_links(value, text)
+        if removed:
+            log.warning("removed %d link(s) the input doesn't contain (provider=%s)", removed, provider.name)
+        return _validate(value, completion.text, theme.Schema), provider
 
     try:
-        data, provider = await attempt(prompt.user)
+        data, provider = await attempt(user)
         repaired = False
     except BadOutput as bad:
         if deadline.left() <= REPAIR_MIN_LEFT_S:
             raise
         log.info("attempt 1 %s (%s); repairing", bad.kind, bad.problems[0])
-        data, provider = await attempt(_repair_prompt(prompt.user, bad))
+        data, provider = await attempt(_repair_prompt(user, bad))
         repaired = True
 
     data = theme.normalize(data)
@@ -186,11 +200,14 @@ def _chain_error(failures: list[ProviderError]) -> AppError:
     return AppError(ErrorKind.PROVIDER, "The AI service is unavailable right now. Please try again.")
 
 
-def _parse(raw: str, schema: type[BaseModel]) -> BaseModel:
+def _extract(raw: str) -> Any:
     try:
-        value = extract_json(raw)
+        return extract_json(raw)
     except ExtractError as e:
         raise BadOutput(ErrorKind.MALFORMED, "The AI returned output that couldn't be read.", raw, [str(e)]) from None
+
+
+def _validate(value: Any, raw: str, schema: type[BaseModel]) -> BaseModel:
     try:
         return schema.model_validate(value)
     except ValidationError as e:
@@ -207,12 +224,15 @@ def _compact(err: ValidationError) -> list[str]:
     return lines
 
 
-def _system_prompt(theme_system: str, schema: dict[str, Any], example: dict[str, Any]) -> str:
+def _system_prompt(theme_system: str, schema: dict[str, Any], example: dict[str, Any], marker: str) -> str:
+    # The marker leads, so reciting the prompt from the top gives it away; the rules come last, to win.
     return (
+        f"Marker: {marker}\n\n"
         f"{theme_system}\n\n"
         "Respond with a single JSON value only: no prose, no markdown fences.\n"
         f"It must match this JSON Schema:\n{json.dumps(schema, separators=(',', ':'))}\n\n"
-        f"Example of a valid response:\n{json.dumps(example)}"
+        f"Example of a valid response:\n{json.dumps(example)}\n\n"
+        f"{guard.RULES}"
     )
 
 

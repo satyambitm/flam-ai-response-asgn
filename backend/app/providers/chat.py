@@ -3,7 +3,7 @@
 from types import ModuleType
 from typing import Any
 
-from app.providers.base import Completion, ProviderError, Usage, parse_retry_after
+from app.providers.base import MAX_OUTPUT_TOKENS, Completion, ProviderError, Usage, parse_retry_after
 
 
 class ChatCompletionsProvider:
@@ -24,6 +24,7 @@ class ChatCompletionsProvider:
                 model=self.model,
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                 response_format=self.response_format(json_schema),
+                max_completion_tokens=MAX_OUTPUT_TOKENS,
                 timeout=timeout_s,
             )
         except sdk.APIStatusError as e:

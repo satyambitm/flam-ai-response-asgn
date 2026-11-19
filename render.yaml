@@ -6,13 +6,13 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.12"
-      - key: FORWARDED_ALLOW_IPS # trust Render's proxy for the client IP (rate limit)
-        value: "*"
+      - key: CLIENT_IP_HEADER # set by Cloudflare in front of Render; X-Forwarded-For there is client-written
+        value: True-Client-IP
       - key: LLM_PROVIDER
         value: groq
       - key: LLM_FALLBACK

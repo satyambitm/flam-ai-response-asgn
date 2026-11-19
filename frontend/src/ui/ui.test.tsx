@@ -62,8 +62,8 @@ describe("ErrorView", () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
-  it("has no retry for input errors and points at the input", () => {
-    render(<ErrorView error={{ kind: "input", message: "too long", retryable: false }} onRetry={() => {}} />);
+  it.each(["input", "blocked"] as const)("has no retry for %s errors and points at the input", (kind) => {
+    render(<ErrorView error={{ kind, message: "x", retryable: false }} onRetry={() => {}} />);
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText(/Edit your text above/)).toBeInTheDocument();
   });

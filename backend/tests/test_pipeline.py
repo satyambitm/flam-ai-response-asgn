@@ -62,7 +62,7 @@ async def test_repair_prompt_carries_bad_output_and_errors():
     env = await run([p], text="my notes")
     assert env.meta.repaired
     repair_user = p.calls[1]["user"]
-    assert repair_user.startswith("my notes")
+    assert repair_user.startswith("<material>\nmy notes\n</material>")
     assert '{"title": "x"}' in repair_user
     assert "items: Field required" in repair_user
     assert p.calls[0]["system"] == p.calls[1]["system"]

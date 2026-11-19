@@ -12,7 +12,9 @@ export function ErrorView({ error, onRetry }: Props) {
     <div className="card error" role="alert">
       <h2>{ERROR_TITLES[error.kind]}</h2>
       <p>{error.message}</p>
-      {error.kind === "input" && <p className="muted">Edit your text above and submit again.</p>}
+      {(error.kind === "input" || error.kind === "blocked") && (
+        <p className="muted">Edit your text above and submit again.</p>
+      )}
       {error.retryable && (
         <button type="button" className="primary" onClick={onRetry} disabled={wait > 0}>
           {wait > 0 ? `Retry in ${wait}s` : "Retry"}

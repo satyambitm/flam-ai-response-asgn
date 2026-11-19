@@ -15,6 +15,10 @@ from app.providers.factory import build_providers
 
 log = logging.getLogger("app")
 
+# The largest legitimate body is 20,000 characters of input, at most ~120 KB even fully JSON-escaped.
+MAX_BODY_BYTES = 128 * 1024
+SECURITY_HEADERS = {"X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"}  # responses echo user content
+
 
 def error_response(err: AppError) -> JSONResponse:
     body = ErrorEnvelope(
@@ -27,6 +31,22 @@ def error_response(err: AppError) -> JSONResponse:
 def _compact_validation(exc: RequestValidationError) -> str:
     parts = [f"{'.'.join(map(str, e['loc'][1:])) or 'body'}: {e['msg']}" for e in exc.errors()[:5]]
     return "Invalid request. " + "; ".join(parts)
+
+
+def _body_too_large(request: Request) -> JSONResponse | None:
+    """Refuse oversized bodies before they're read. The server stops reading at Content-Length, so the
+    header is the bound; a POST without one (chunked) is refused too, since browsers always send it."""
+    if request.method != "POST":
+        return None
+    length = request.headers.get("content-length")
+    if length is None or not length.isdigit():
+        resp, status = error_response(AppError(ErrorKind.INPUT, "Request needs a Content-Length.")), 411
+    elif int(length) > MAX_BODY_BYTES:
+        resp, status = error_response(AppError(ErrorKind.INPUT, "Request body is too large.")), 413
+    else:
+        return None
+    resp.status_code = status
+    return resp
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -59,10 +79,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def _catch_all(request: Request, call_next):
         try:
-            return await call_next(request)
+            response = _body_too_large(request) or await call_next(request)
         except Exception:
             log.exception("unhandled error on %s %s", request.method, request.url.path)
-            return error_response(AppError(ErrorKind.INTERNAL, "Something went wrong on our side."))
+            response = error_response(AppError(ErrorKind.INTERNAL, "Something went wrong on our side."))
+        response.headers.update(SECURITY_HEADERS)
+        return response
 
     app.add_middleware(
         CORSMiddleware,

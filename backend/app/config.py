@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     allow_faults: bool = False
     rate_limit_per_min: int = 10
+    # Header the platform's edge sets to the real client IP and overwrites if the client sends it
+    # (Render: True-Client-IP, from Cloudflare). Empty: use the socket peer. Never X-Forwarded-For,
+    # which Render only appends to, so its first entry is whatever the client wrote.
+    client_ip_header: str = ""
     total_timeout_s: float = 40
     provider_timeout_s: float = 25
     log_level: str = "INFO"

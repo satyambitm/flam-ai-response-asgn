@@ -3,7 +3,7 @@ from typing import Any
 from google import genai
 from google.genai import errors, types
 
-from app.providers.base import Completion, ProviderError, Usage, parse_retry_after
+from app.providers.base import MAX_OUTPUT_TOKENS, Completion, ProviderError, Usage, parse_retry_after
 
 # attempts=1 disables both tenacity retries and the SDK's implicit connection-error retry.
 _NO_RETRY = types.HttpRetryOptions(attempts=1)
@@ -23,6 +23,7 @@ class GeminiProvider:
             system_instruction=system,
             response_mime_type="application/json",
             response_json_schema=json_schema,
+            max_output_tokens=MAX_OUTPUT_TOKENS,
             http_options=types.HttpOptions(
                 timeout=int(max(timeout_s, _MIN_SERVER_TIMEOUT_S) * 1000), retry_options=_NO_RETRY
             ),
