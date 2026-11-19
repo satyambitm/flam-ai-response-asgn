@@ -6,7 +6,7 @@ The interesting part is the generic module underneath it. Any theme (study, reci
 
 - **Backend:** FastAPI + Pydantic v2 (Python 3.12). Gemini, Groq and OpenAI via their official SDKs, with fallback.
 - **Frontend:** React 19 + TypeScript + Vite. A hand-written state machine; no React Query or Redux.
-- **Tests:** 142 pytest + 57 Vitest.
+- **Tests:** 187 pytest + 66 Vitest.
 
 Design docs: [main-problem.md](main-problem.md) (problem and failure taxonomy) and [plan.md](plan.md) (decisions and contract).
 
@@ -17,6 +17,8 @@ Design docs: [main-problem.md](main-problem.md) (problem and failure taxonomy) a
 Needs Node 20+ and [uv](https://docs.astral.sh/uv/). uv installs Python 3.12 itself.
 
 ```bash
+git clone https://github.com/mr-raj12/flam-ai-response-asgn && cd flam-ai-response-asgn
+
 # 1. backend (http://localhost:8000)
 cd backend
 cp .env.example .env          # add at least one API key, or set LLM_PROVIDER=mock
@@ -33,8 +35,10 @@ npm install && npm start
 
 **Tests:**
 ```bash
-cd backend && uv run pytest -q && uv run ruff check .
-cd frontend && npm run check      # tsc + oxlint + prettier + vitest
+# from the repo root
+(cd backend && uv run pytest -q && uv run ruff check .)
+(cd frontend && npm run check)    # tsc + oxlint + prettier + vitest
+npm test                          # both suites, no lint
 ```
 
 ---
