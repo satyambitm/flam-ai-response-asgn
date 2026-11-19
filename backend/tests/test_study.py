@@ -1,4 +1,5 @@
 import json
+import random
 
 import pytest
 from pydantic import ValidationError
@@ -7,7 +8,7 @@ from app.core import pipeline
 from app.core.errors import AppError, ErrorKind
 from app.providers.base import Completion
 from app.providers.mock import Fault, MockProvider
-from app.themes.study import MAX_CARDS, StudySet, StudyTheme
+from app.themes.study import MAX_CARDS, QuizQuestion, StudySet, StudyTheme, _clean_question
 
 THEME = StudyTheme()
 
@@ -47,8 +48,54 @@ def test_normalize_trims_assigns_ids_and_drops_unusable_items():
     data = THEME.normalize(raw)
     assert data.topic == "Study set"
     assert [(c.front, c.back) for c in data.flashcards] == [("f", "b")]
-    assert [(q.question, q.options, q.answerIndex) for q in data.quiz] == [("Q1", ["a", "b"], 1)]
+    [q] = data.quiz
+    assert (q.question, sorted(q.options), q.options[q.answerIndex]) == ("Q1", ["a", "b"], "b")
     assert all(len(x.id) == 8 for x in [*data.flashcards, *data.quiz])
+
+
+def test_shuffle_keeps_the_answer_and_each_rationale_on_its_option():
+    q = QuizQuestion.model_validate(question(answerIndex=2, rationales=["no a", "no b", "yes c", "no d"]))
+    positions = set()
+    for seed in range(40):
+        out = _clean_question(q, random.Random(seed))
+        assert out.options[out.answerIndex] == "c"
+        assert [r.split()[1] for r in out.rationales] == out.options
+        positions.add(out.answerIndex)
+    assert positions == {0, 1, 2, 3}  # the right answer moves between slots
+
+
+def test_verdict_lead_ins_are_stripped_from_rationales():
+    q = question(options=["a", "b"], rationales=["Right: because x", "Wrong - rightly tempting"])
+    out = _clean_question(QuizQuestion.model_validate(q))
+    assert sorted(out.rationales) == ["because x", "rightly tempting"]
+
+
+@pytest.mark.parametrize("rationales", [["only one"], ["a", "", "c", "d"]])
+def test_misaligned_rationales_are_dropped_not_the_question(rationales):
+    out = _clean_question(QuizQuestion.model_validate(question(rationales=rationales)))
+    assert out is not None and out.rationales == []
+
+
+@pytest.mark.parametrize(("raw", "skill"), [("Apply", "apply"), ("analyse", "analyze"), ("evaluate", "recall")])
+def test_unknown_skill_labels_fall_back_instead_of_failing(raw, skill):
+    assert QuizQuestion.model_validate(question(skill=raw)).skill == skill
+
+
+def test_cards_are_grouped_by_section_in_first_seen_order_and_hints_never_repeat_the_answer():
+    cards = [
+        {"front": "1", "back": "x", "section": "A"},
+        {"front": "2", "back": "y", "section": "B", "hint": " Y "},
+        {"front": "3", "back": "z", "section": "A", "hint": "starts with z"},
+    ]
+    data = THEME.normalize(StudySet.model_validate(study(flashcards=cards)))
+    assert [(c.front, c.section) for c in data.flashcards] == [("1", "A"), ("3", "A"), ("2", "B")]
+    assert [c.hint for c in data.flashcards] == ["", "starts with z", ""]
+
+
+def test_example_is_a_valid_study_set():
+    data = THEME.normalize(StudySet.model_validate(THEME.example))
+    assert all(c.hint and c.detail and c.section for c in data.flashcards)
+    assert all(len(q.rationales) == len(q.options) for q in data.quiz)
 
 
 def test_normalize_caps_list_sizes():
@@ -73,7 +120,8 @@ async def test_out_of_range_answer_goes_through_repair():
             return Completion(json.dumps(bad if self.calls == 1 else study()))
 
     env = await pipeline.generate(THEME, "cells", [Bad()], total_s=30, provider_s=20)
-    assert env.meta.repaired and env.data.quiz[0].answerIndex == 0
+    [q] = env.data.quiz
+    assert env.meta.repaired and q.options[q.answerIndex] == "a"
 
 
 @pytest.mark.parametrize(
