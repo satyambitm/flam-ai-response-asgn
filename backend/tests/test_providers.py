@@ -9,10 +9,12 @@ import pytest
 from google.genai import errors as gerrors
 
 from app.config import Settings
+from app.core.errors import AppError, ErrorKind
 from app.providers.base import ProviderError, Usage
-from app.providers.factory import build_providers
+from app.providers.factory import build_providers, chain_for
 from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider
+from app.providers.mock import Fault
 from app.providers.openai import OpenAIProvider, to_strict
 from app.themes.registry import THEMES
 
@@ -177,9 +179,17 @@ def settings(**kw) -> Settings:
     return Settings(_env_file=None, **kw)
 
 
-def test_factory_builds_primary_and_fallback():
-    chain = build_providers(settings(llm_provider="gemini", llm_fallback="groq", gemini_api_key="a", groq_api_key="b"))
-    assert [p.name for p in chain] == ["gemini", "groq"]
+def names(providers) -> list[str]:
+    return [p.name for p in providers]
+
+
+def test_factory_builds_primary_fallback_and_other_keyed_providers():
+    built = build_providers(
+        settings(llm_provider="groq", llm_fallback="gemini", gemini_api_key="a", groq_api_key="b", openai_api_key="c")
+    )
+    assert names(built.chain) == ["groq", "gemini"]
+    assert list(built.available) == ["groq", "gemini", "openai"]  # chain order first
+    assert built.available["groq"] is built.chain[0]  # one client per provider, shared
 
 
 def test_factory_missing_primary_key_fails_fast():
@@ -188,13 +198,55 @@ def test_factory_missing_primary_key_fails_fast():
 
 
 def test_factory_missing_fallback_key_disables_fallback():
-    chain = build_providers(settings(llm_provider="openai", llm_fallback="groq", openai_api_key="a"))
-    assert [p.name for p in chain] == ["openai"]
+    built = build_providers(settings(llm_provider="openai", llm_fallback="groq", openai_api_key="a"))
+    assert names(built.chain) == ["openai"] and list(built.available) == ["openai"]
 
 
 def test_factory_ignores_fallback_equal_to_primary_and_blank():
-    assert len(build_providers(settings(llm_provider="groq", llm_fallback="groq", groq_api_key="a"))) == 1
-    assert len(build_providers(settings(llm_provider="groq", llm_fallback="", groq_api_key="a"))) == 1
+    assert len(build_providers(settings(llm_provider="groq", llm_fallback="groq", groq_api_key="a")).chain) == 1
+    assert len(build_providers(settings(llm_provider="groq", llm_fallback="", groq_api_key="a")).chain) == 1
+
+
+def test_factory_mock_mode_builds_nothing():
+    built = build_providers(settings(llm_provider="mock", groq_api_key="a"))
+    assert built.chain == [] and built.available == {}
+
+
+# --- per-request routing ---
+
+ECHO = THEMES["echo"]
+REAL = settings(llm_provider="groq", llm_fallback="gemini", groq_api_key="a", gemini_api_key="b", openai_api_key="c")
+
+
+def test_no_choice_uses_the_configured_chain():
+    built = build_providers(REAL)
+    assert chain_for(REAL, built, ECHO, None, None) == built.chain
+
+
+def test_chosen_provider_goes_first_with_the_chain_behind_it():
+    built = build_providers(REAL)
+    assert names(chain_for(REAL, built, ECHO, None, "openai")) == ["openai", "groq", "gemini"]
+    assert names(chain_for(REAL, built, ECHO, None, "gemini")) == ["gemini", "groq"]  # no duplicate
+
+
+def test_unconfigured_provider_is_an_input_error():
+    s = settings(llm_provider="groq", groq_api_key="a")
+    with pytest.raises(AppError) as exc:
+        chain_for(s, build_providers(s), ECHO, None, "openai")
+    assert exc.value.kind == ErrorKind.INPUT and "OpenAI" in exc.value.message
+
+
+def test_mock_mode_only_accepts_mock():
+    s = settings(llm_provider="mock")
+    assert names(chain_for(s, build_providers(s), ECHO, None, "mock")) == ["mock"]
+    with pytest.raises(AppError):
+        chain_for(s, build_providers(s), ECHO, None, "groq")
+
+
+def test_fault_overrides_the_chosen_provider():
+    s = REAL.model_copy(update={"allow_faults": True})
+    chain = chain_for(s, build_providers(s), ECHO, Fault.RATE_429, "openai")
+    assert names(chain) == ["mock"] and chain[0].model == "mock-rate_429"
 
 
 # --- usage ---

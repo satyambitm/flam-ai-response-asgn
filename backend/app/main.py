@@ -71,8 +71,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "X-Fault"],
     )
     app.include_router(router)
-    chain = " -> ".join(f"{p.name}:{p.model}" for p in app.state.providers) or "mock"
-    log.info("started chain=%s faults=%s cors=%s", chain, settings.allow_faults, settings.cors_origin_list)
+    providers = app.state.providers
+    chain = " -> ".join(f"{p.name}:{p.model}" for p in providers.chain) or "mock"
+    log.info(
+        "started chain=%s selectable=%s faults=%s cors=%s",
+        chain,
+        ",".join(providers.available) or "mock",
+        settings.allow_faults,
+        settings.cors_origin_list,
+    )
     return app
 
 

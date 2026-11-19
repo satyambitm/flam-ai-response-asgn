@@ -1,6 +1,11 @@
+import json
+
 import pytest
 
+from app.providers.base import Completion, ProviderError
+from app.providers.factory import Providers
 from app.providers.mock import Fault
+from app.themes.registry import THEMES
 
 EXPECTED_STATUS = {
     Fault.OK: 200,
@@ -89,4 +94,75 @@ def test_cors_preflight_allows_fault_header(client):
 
 def test_openapi_exposes_theme_and_envelope_schemas(client):
     schemas = client.get("/openapi.json").json()["components"]["schemas"]
-    assert {"EchoData", "EchoItem", "SuccessEnvelope", "ErrorEnvelope", "GenerateRequest", "Fault"} <= schemas.keys()
+    expected = {"EchoData", "EchoItem", "SuccessEnvelope", "ErrorEnvelope", "GenerateRequest", "Fault", "ProvidersInfo"}
+    assert expected <= schemas.keys()
+
+
+# --- provider choice, with the SDK adapters swapped for stubs on a real (non-mock) config ---
+
+
+class Stub:
+    def __init__(self, name: str, model: str, *, down: bool = False):
+        self.name, self.model, self.down, self.calls = name, model, down, 0
+
+    async def generate(self, **_) -> Completion:
+        self.calls += 1
+        if self.down:
+            raise ProviderError("down", status=503)
+        return Completion(json.dumps(THEMES["echo"].example))
+
+
+KEYS = {"groq_api_key": "sk-groq-secret", "gemini_api_key": "sk-gemini-secret", "openai_api_key": ""}
+
+
+@pytest.fixture
+def real(make_client):
+    """groq -> gemini chain; openai has no key, so it isn't selectable."""
+    client = make_client(llm_provider="groq", llm_fallback="gemini", **KEYS)
+    groq, gemini = Stub("groq", "g-model"), Stub("gemini", "m-model")
+    client.app.state.providers = Providers(chain=[groq, gemini], available={"groq": groq, "gemini": gemini})
+    return client, groq, gemini
+
+
+def test_providers_lists_mock_alone_in_mock_mode(client):
+    assert client.get("/providers").json() == {
+        "default": "mock",
+        "options": [{"id": "mock", "title": "Mock", "model": "mock-ok"}],
+    }
+
+
+def test_providers_lists_keyed_providers_and_no_secrets(make_client):
+    r = make_client(llm_provider="groq", llm_fallback="gemini", **KEYS).get("/providers")
+    body = r.json()
+    assert body["default"] == "groq"
+    assert [(o["id"], o["title"]) for o in body["options"]] == [("groq", "Groq"), ("gemini", "Gemini")]
+    assert "secret" not in r.text
+
+
+def test_chosen_provider_answers(real):
+    client, groq, gemini = real
+    r = post(client, providerId="gemini")
+    assert r.status_code == 200 and r.json()["meta"]["provider"] == "gemini"
+    assert (groq.calls, gemini.calls) == (0, 1)
+
+
+def test_no_choice_uses_the_default(real):
+    client, groq, gemini = real
+    assert post(client).json()["meta"]["provider"] == "groq" and gemini.calls == 0
+
+
+def test_chosen_provider_down_falls_back_to_the_chain(real):
+    client, groq, gemini = real
+    gemini.down = True
+    r = post(client, providerId="gemini")
+    assert r.status_code == 200 and r.json()["meta"]["provider"] == "groq"
+    assert (gemini.calls, groq.calls) == (1, 1)
+
+
+@pytest.mark.parametrize(
+    ("provider", "message"), [("openai", "OpenAI provider isn't available"), ("nope", "providerId")]
+)
+def test_unavailable_or_unknown_provider_is_input_error(real, provider, message):
+    r = post(real[0], providerId=provider)
+    err = r.json()["error"]
+    assert r.status_code == 422 and err["kind"] == "input" and message in err["message"]

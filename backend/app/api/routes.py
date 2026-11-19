@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Request
 
-from app.api.schemas import ErrorEnvelope, GenerateRequest, Health, SuccessEnvelope, ThemeInfo
+from app.api.schemas import ErrorEnvelope, GenerateRequest, Health, ProvidersInfo, SuccessEnvelope, ThemeInfo
 from app.core import pipeline
-from app.providers.factory import chain_for
+from app.providers.factory import chain_for, options
 from app.providers.mock import Fault
 from app.themes.registry import THEMES, get_theme
 
@@ -26,6 +26,12 @@ def themes() -> list[ThemeInfo]:
     ]
 
 
+@router.get("/providers")
+def providers(request: Request) -> ProvidersInfo:
+    state = request.app.state
+    return ProvidersInfo(default=state.settings.llm_provider, options=options(state.settings, state.providers))
+
+
 @router.post("/generate", responses=_ERRORS)
 async def generate(
     body: GenerateRequest, request: Request, x_fault: Annotated[Fault | None, Header()] = None
@@ -33,7 +39,7 @@ async def generate(
     state = request.app.state
     state.limiter.check(request.client.host if request.client else "unknown")
     theme = get_theme(body.themeId)
-    chain = chain_for(state.settings, state.providers, theme, x_fault)
+    chain = chain_for(state.settings, state.providers, theme, x_fault, body.providerId)
     return await pipeline.generate(
         theme,
         body.input,

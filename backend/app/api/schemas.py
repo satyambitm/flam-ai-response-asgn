@@ -2,6 +2,7 @@ from typing import Literal, Union
 
 from pydantic import BaseModel, Field
 
+from app.config import ProviderName
 from app.core.errors import ErrorKind
 from app.themes.registry import THEMES
 
@@ -13,6 +14,8 @@ class GenerateRequest(BaseModel):
     themeId: str = Field(max_length=64)
     # Hard cap on the body; the per-theme cap (max_input_chars) is checked in the pipeline.
     input: str = Field(max_length=20_000)
+    # Optional pick from GET /providers; omitted means the server's configured chain.
+    providerId: ProviderName | None = None
 
 
 class ErrorBody(BaseModel):
@@ -59,3 +62,14 @@ class ThemeInfo(BaseModel):
     title: str
     inputHint: str
     maxInputChars: int
+
+
+class ProviderOption(BaseModel):
+    id: ProviderName
+    title: str
+    model: str
+
+
+class ProvidersInfo(BaseModel):
+    default: ProviderName  # used when a request names no provider
+    options: list[ProviderOption]
