@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { ErrorView } from "./ErrorView";
 import { InputPanel } from "./InputPanel";
 import { LoadingView, WAKE_HINT_AFTER_MS } from "./LoadingView";
+import { ProviderPicker } from "./ProviderPicker";
 import { Workspace } from "./Workspace";
 
 vi.mock("../core/api", async (orig) => ({ ...(await orig<typeof import("../core/api")>()), generate: vi.fn() }));
@@ -135,7 +136,7 @@ describe("Workspace", () => {
 
   it("renders the View with meta on success and focuses the result", async () => {
     generateMock.mockResolvedValue({ ok: true, data: { title: "My list", items: [] }, meta: META });
-    render(<Workspace theme={THEME} View={Echo} fault={null} />);
+    render(<Workspace theme={THEME} View={Echo} fault={null} provider={null} />);
     await submit();
     expect(await screen.findByRole("heading", { name: "My list" })).toBeInTheDocument();
     expect(screen.getByText("auto-repaired")).toBeInTheDocument();
@@ -143,26 +144,52 @@ describe("Workspace", () => {
     expect(screen.getByRole("region", { name: "Result" })).toHaveFocus();
   });
 
-  it("sends the selected fault", async () => {
+  it("sends the selected fault and provider", async () => {
     generateMock.mockReturnValue(new Promise(() => {}));
-    render(<Workspace theme={THEME} View={Echo} fault="truncated" />);
+    render(<Workspace theme={THEME} View={Echo} fault="truncated" provider="gemini" />);
     await submit();
-    expect(generateMock).toHaveBeenCalledWith("echo", "notes", expect.objectContaining({ fault: "truncated" }));
+    expect(generateMock).toHaveBeenCalledWith(
+      "echo",
+      "notes",
+      expect.objectContaining({ fault: "truncated", provider: "gemini" }),
+    );
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("shows the empty state", async () => {
     generateMock.mockResolvedValue({ ok: false, error: { kind: "empty", message: "nothing", retryable: true } });
-    render(<Workspace theme={THEME} View={Echo} fault={null} />);
+    render(<Workspace theme={THEME} View={Echo} fault={null} provider={null} />);
     await submit();
     expect(await screen.findByText("Nothing to show yet")).toBeInTheDocument();
   });
 
   it("contains a View that throws instead of blanking the app", async () => {
     generateMock.mockResolvedValue({ ok: true, data: { title: "x", items: [] }, meta: META });
-    render(<Workspace theme={THEME} View={defineView(Boom)} fault={null} />);
+    render(<Workspace theme={THEME} View={defineView(Boom)} fault={null} provider={null} />);
     await submit();
     expect(await screen.findByText("Couldn't display this result")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+});
+
+describe("ProviderPicker", () => {
+  const OPTIONS = [
+    { id: "groq", title: "Groq", model: "openai/gpt-oss-120b" },
+    { id: "gemini", title: "Gemini", model: "gemini-3.5-flash-lite" },
+  ] as const;
+
+  it("lists each provider with its model and reports the choice", async () => {
+    const onChange = vi.fn();
+    render(<ProviderPicker options={[...OPTIONS]} value="groq" onChange={onChange} />);
+    const select = screen.getByRole("combobox", { name: "Model" });
+    expect(select).toHaveValue("groq");
+    expect(screen.getByRole("option", { name: "Gemini (gemini-3.5-flash-lite)" })).toBeInTheDocument();
+    await userEvent.selectOptions(select, "gemini");
+    expect(onChange).toHaveBeenCalledWith("gemini");
+  });
+
+  it("is disabled while fault injection routes to the mock", () => {
+    render(<ProviderPicker options={[...OPTIONS]} value="groq" onChange={() => {}} locked />);
+    expect(screen.getByRole("combobox", { name: "Model" })).toBeDisabled();
   });
 });

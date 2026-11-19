@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { type Fault, fetchThemes, type ThemesResult } from "./core/api";
+import {
+  type Fault,
+  fetchProviders,
+  fetchThemes,
+  type ProviderId,
+  type ProvidersInfo,
+  type ThemesResult,
+} from "./core/api";
 import { VIEWS } from "./themes/registry";
 import { DevFaultPanel } from "./ui/DevFaultPanel";
 import { ErrorView } from "./ui/ErrorView";
 import { LoadingView } from "./ui/LoadingView";
+import { ProviderPicker } from "./ui/ProviderPicker";
 import { Shell } from "./ui/Shell";
 import { Workspace } from "./ui/Workspace";
 
@@ -13,6 +21,9 @@ export default function App() {
   const { themes, reload } = useThemes();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [fault, setFault] = useState<Fault | null>(null);
+  const providers = useProviders();
+  const [chosen, setChosen] = useState<ProviderId | null>(null);
+  const provider = chosen ?? providers?.default ?? null;
 
   const available = themes.status === "done" && themes.result.ok ? themes.result.data.filter((t) => VIEWS[t.id]) : [];
   const active = available.find((t) => t.id === activeId) ?? available[0];
@@ -29,7 +40,27 @@ export default function App() {
       {themes.status === "done" && themes.result.ok && !active && (
         <p className="card">The server offers no themes this app can display.</p>
       )}
-      {active && <Workspace key={active.id} theme={active} View={VIEWS[active.id]} fault={fault} />}
+      {active && (
+        <Workspace
+          key={active.id}
+          theme={active}
+          View={VIEWS[active.id]}
+          fault={fault}
+          provider={provider}
+          picker={
+            providers &&
+            provider &&
+            providers.options.length > 1 && (
+              <ProviderPicker
+                options={providers.options}
+                value={provider}
+                onChange={setChosen}
+                locked={fault !== null}
+              />
+            )
+          }
+        />
+      )}
     </Shell>
   );
 }
@@ -55,4 +86,19 @@ function useThemes() {
     setAttempt((n) => n + 1);
   }, []);
   return { themes, reload };
+}
+
+/** Optional: if this fails the picker is hidden and requests use the server's default chain. */
+function useProviders(): ProvidersInfo | null {
+  const [info, setInfo] = useState<ProvidersInfo | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchProviders({ signal: controller.signal }).then((result) => {
+      if (controller.signal.aborted) return;
+      if (result.ok) setInfo(result.data);
+      else console.warn(`[providers] ${result.error.kind}: ${result.error.message}; using the server default`);
+    });
+    return () => controller.abort();
+  }, []);
+  return info;
 }

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchThemes, generate } from "./api";
+import { fetchProviders, fetchThemes, generate } from "./api";
 
 const META = { attempts: 1, provider: "mock", model: "m", latencyMs: 5, repaired: false, usage: null };
 const OK = { ok: true, data: { title: "t", items: [] }, meta: META };
@@ -28,6 +28,16 @@ describe("generate", () => {
     expect(url).toMatch(/\/generate$/);
     expect(JSON.parse(init.body as string)).toEqual({ themeId: "echo", input: "hi" });
     expect((init.headers as Record<string, string>)["X-Fault"]).toBe("slow");
+  });
+
+  it("sends the chosen provider in the body", async () => {
+    const fetch = mockFetch(() => json(OK));
+    await generate("echo", "hi", { provider: "gemini" });
+    expect(JSON.parse(fetch.mock.calls[0][1].body as string)).toEqual({
+      themeId: "echo",
+      input: "hi",
+      providerId: "gemini",
+    });
   });
 
   it("passes a server error envelope through regardless of status", async () => {
@@ -89,6 +99,22 @@ describe("fetchThemes", () => {
   it("rejects a malformed list", async () => {
     mockFetch(() => json([{ id: "echo" }]));
     const r = await fetchThemes();
+    expect(!r.ok && r.error.kind).toBe("bad_response");
+  });
+});
+
+describe("fetchProviders", () => {
+  const INFO = { default: "groq", options: [{ id: "groq", title: "Groq", model: "openai/gpt-oss-120b" }] };
+
+  it("returns the provider list", async () => {
+    const fetch = mockFetch(() => json(INFO));
+    expect(await fetchProviders()).toEqual({ ok: true, data: INFO });
+    expect(fetch.mock.calls[0][0]).toMatch(/\/providers$/);
+  });
+
+  it("rejects a malformed list", async () => {
+    mockFetch(() => json({ default: "groq", options: [{ id: "groq" }] }));
+    const r = await fetchProviders();
     expect(!r.ok && r.error.kind).toBe("bad_response");
   });
 });

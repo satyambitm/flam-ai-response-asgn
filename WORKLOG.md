@@ -22,5 +22,6 @@ They measure the AI-assisted build session only. Reading the assignment, decidin
 | 13 | Study assistant theme | 00:43 | ~7m | Live-checked quiz answers for correctness on all 3 providers |
 | 12 | README | 00:50 | ~7m | |
 | 14 | UI redesign: dusk palette, 3D flashcard deck, quiz verdicts, two-pane layout | 01:07 | ~12m | Browser-verified with Claude in Chrome (desktop, 360px, light/dark); found and fixed verdict-vs-selected specificity and mobile control wrap |
+| 15 | Provider picker: GET /providers, per-request `providerId`, Model dropdown | 01:32 | ~10m | Live-checked Groq, Gemini and OpenAI via curl and the UI; found the --reload server hadn't picked up the new route and restarted it |
 
 **Build session total: ~1h25m** (23:25 → ~00:50).

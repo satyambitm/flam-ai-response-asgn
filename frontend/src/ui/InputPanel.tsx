@@ -1,12 +1,14 @@
-import { type FormEvent, type KeyboardEvent, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent, type ReactNode, useId, useState } from "react";
 
 interface Props {
   hint: string;
   maxChars: number;
   onSubmit: (input: string) => void;
+  /** Extra controls placed beside Generate. */
+  controls?: ReactNode;
 }
 
-export function InputPanel({ hint, maxChars, onSubmit }: Props) {
+export function InputPanel({ hint, maxChars, onSubmit, controls }: Props) {
   const [text, setText] = useState("");
   const id = useId();
   const length = text.trim().length;
@@ -45,9 +47,12 @@ export function InputPanel({ hint, maxChars, onSubmit }: Props) {
         <span className="kbd-hint" aria-hidden="true">
           <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd>
         </span>
-        <button type="submit" className="primary" disabled={!canSubmit}>
-          Generate
-        </button>
+        <div className="composer-actions">
+          {controls}
+          <button type="submit" className="primary" disabled={!canSubmit}>
+            Generate
+          </button>
+        </div>
       </div>
     </form>
   );

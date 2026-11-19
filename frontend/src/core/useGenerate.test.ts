@@ -78,20 +78,20 @@ describe("useGenerate", () => {
     generateMock.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useGenerate("echo"));
     act(() => {
-      result.current.generate("hello", "slow");
+      result.current.generate("hello", { fault: "slow" });
     });
     expect(generateMock).toHaveBeenCalledWith("echo", "hello", expect.objectContaining({ fault: "slow" }));
   });
 
-  it("retry re-runs the last input and fault", async () => {
+  it("retry re-runs the last input, fault and provider", async () => {
     generateMock.mockResolvedValue({ ok: false, error: { kind: "timeout", message: "t", retryable: true } });
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { result } = renderHook(() => useGenerate("echo"));
-    await act(async () => result.current.generate("again", "error_500"));
+    await act(async () => result.current.generate("again", { fault: "error_500", provider: "groq" }));
     await act(async () => result.current.retry());
     expect(generateMock).toHaveBeenCalledTimes(2);
     expect(generateMock.mock.calls[1].slice(0, 2)).toEqual(["echo", "again"]);
-    expect(generateMock.mock.calls[1][2]).toMatchObject({ fault: "error_500" });
+    expect(generateMock.mock.calls[1][2]).toMatchObject({ fault: "error_500", provider: "groq" });
   });
 
   it("cancel aborts and returns to idle; a late response is ignored", async () => {

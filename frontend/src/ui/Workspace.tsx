@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { Fault, ThemeInfo } from "../core/api";
+import { type ReactNode, useEffect, useRef } from "react";
+import type { Fault, ProviderId, ThemeInfo } from "../core/api";
 import { ERROR_TITLES } from "../core/errors";
 import { formatUsage } from "../core/format";
 import type { GenState } from "../core/state";
@@ -15,10 +15,13 @@ interface Props {
   theme: ThemeInfo;
   View: ThemeView;
   fault: Fault | null;
+  /** null: the server's configured chain. */
+  provider: ProviderId | null;
+  picker?: ReactNode;
 }
 
 /** Generic input → request → result flow for one theme. Mount with key={theme.id} to reset on switch. */
-export function Workspace({ theme, View, fault }: Props) {
+export function Workspace({ theme, View, fault, provider, picker }: Props) {
   const { state, generate, retry, cancel } = useGenerate(theme.id);
   const resultRef = useRef<HTMLElement>(null);
   const settledId = state.status === "idle" || state.status === "loading" ? null : state.requestId;
@@ -32,7 +35,8 @@ export function Workspace({ theme, View, fault }: Props) {
       <InputPanel
         hint={theme.inputHint}
         maxChars={theme.maxInputChars}
-        onSubmit={(input) => generate(input, fault ?? undefined)}
+        onSubmit={(input) => generate(input, { fault: fault ?? undefined, provider: provider ?? undefined })}
+        controls={picker}
       />
       <p className="visually-hidden" aria-live="polite">
         {announce(state)}

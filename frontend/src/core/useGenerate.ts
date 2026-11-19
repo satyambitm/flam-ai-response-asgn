@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import * as api from "./api";
 import { formatUsage } from "./format";
-import type { Fault, Result, ThemeData } from "./api";
+import type { GenerateOptions, Result, ThemeData } from "./api";
 import { type GenState, genReducer, initialState } from "./state";
+
+/** Per-request routing; both are kept so Retry resends exactly what failed. */
+export type Route = Pick<GenerateOptions, "fault" | "provider">;
 
 export interface UseGenerate {
   state: GenState<ThemeData>;
-  generate: (input: string, fault?: Fault) => void;
+  generate: (input: string, route?: Route) => void;
   retry: () => void;
   cancel: () => void;
   reset: () => void;
@@ -20,19 +23,19 @@ export function useGenerate(themeId: string): UseGenerate {
   const [state, dispatch] = useReducer(genReducer<ThemeData>, initialState);
   const abortRef = useRef<AbortController | null>(null);
   const seqRef = useRef(0);
-  const lastRef = useRef<{ input: string; fault?: Fault } | null>(null);
+  const lastRef = useRef<{ input: string; route: Route } | null>(null);
 
   const generate = useCallback(
-    async (input: string, fault?: Fault) => {
+    async (input: string, route: Route = {}) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       const requestId = ++seqRef.current;
-      lastRef.current = { input, fault };
+      lastRef.current = { input, route };
       const startedAt = Date.now();
       dispatch({ type: "start", requestId, input, startedAt });
 
-      const result = await api.generate(themeId, input, { signal: controller.signal, fault });
+      const result = await api.generate(themeId, input, { ...route, signal: controller.signal });
       logOutcome(themeId, requestId, result, Date.now() - startedAt, controller.signal.aborted);
       dispatch({ type: "resolve", requestId, result });
     },
@@ -40,7 +43,7 @@ export function useGenerate(themeId: string): UseGenerate {
   );
 
   const retry = useCallback(() => {
-    if (lastRef.current) void generate(lastRef.current.input, lastRef.current.fault);
+    if (lastRef.current) void generate(lastRef.current.input, lastRef.current.route);
   }, [generate]);
 
   const cancel = useCallback(() => {

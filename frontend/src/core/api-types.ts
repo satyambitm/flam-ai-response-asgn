@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Providers */
+        get: operations["providers_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/generate": {
         parameters: {
             query?: never;
@@ -124,6 +141,8 @@ export interface components {
             themeId: string;
             /** Input */
             input: string;
+            /** Providerid */
+            providerId?: ("gemini" | "groq" | "openai" | "mock") | null;
         };
         /** Health */
         Health: {
@@ -147,6 +166,28 @@ export interface components {
             /** Repaired */
             repaired: boolean;
             usage: components["schemas"]["UsageMeta"] | null;
+        };
+        /** ProviderOption */
+        ProviderOption: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "gemini" | "groq" | "openai" | "mock";
+            /** Title */
+            title: string;
+            /** Model */
+            model: string;
+        };
+        /** ProvidersInfo */
+        ProvidersInfo: {
+            /**
+             * Default
+             * @enum {string}
+             */
+            default: "gemini" | "groq" | "openai" | "mock";
+            /** Options */
+            options: components["schemas"]["ProviderOption"][];
         };
         /** QuizQuestion */
         QuizQuestion: {
@@ -261,6 +302,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThemeInfo"][];
+                };
+            };
+        };
+    };
+    providers_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvidersInfo"];
                 };
             };
         };

@@ -72,15 +72,15 @@ Structured AI   ( Study assistant | Echo )                  Fault injection ▾
 ```mermaid
 flowchart LR
   subgraph FE["frontend (Vercel)"]
-    App["App.tsx<br/>loads /themes, picks theme, fault"] --> WS["ui/Workspace<br/>input → status → result"]
+    App["App.tsx<br/>loads /themes + /providers, picks theme, model, fault"] --> WS["ui/Workspace<br/>input → status → result"]
     WS --> Hook["core/useGenerate<br/>abort + requestId"]
     Hook --> Red["core/state.ts<br/>pure reducer"]
     Hook --> API["core/api.ts<br/>never throws, 45s timeout,<br/>envelope guard"]
     WS --> EB["ui/ErrorBoundary"] --> View["themes/&lt;id&gt;/View<br/>(study: flashcards + quiz)"]
   end
   subgraph BE["backend (Render)"]
-    R["api/routes.py<br/>/health /themes /generate"] --> RL["core/ratelimit"]
-    R --> F["providers/factory<br/>chain_for(theme, fault)"]
+    R["api/routes.py<br/>/health /themes /providers /generate"] --> RL["core/ratelimit"]
+    R --> F["providers/factory<br/>chain_for(theme, fault, providerId)"]
     R --> P["core/pipeline.py"]
     P --> T["themes/&lt;id&gt;.py<br/>prompt · schema · normalize · is_empty"]
     P --> X["core/extract.py<br/>lenient JSON"]
@@ -139,7 +139,7 @@ backend/app/
   main.py                 app factory, CORS, catch-all → envelope, logging setup
   config.py               env settings
   api/schemas.py          request + envelopes (ThemeData = union of theme schemas → OpenAPI)
-  api/routes.py           /health /themes /generate
+  api/routes.py           /health /themes /providers /generate
   core/pipeline.py        the generate pipeline + repair + usage tally
   core/extract.py         fences / prose / string-aware balanced scan; truncated fails
   core/errors.py          ErrorKind → HTTP status
@@ -148,7 +148,7 @@ backend/app/
   themes/                 base (Theme protocol), registry, study, echo
 frontend/src/
   core/                   api.ts, api-types.ts (generated), errors.ts, state.ts, useGenerate.ts, format.ts
-  ui/                     Shell, Workspace, InputPanel, LoadingView, ErrorView, EmptyView, ErrorBoundary, DevFaultPanel
+  ui/                     Shell, Workspace, InputPanel, LoadingView, ErrorView, EmptyView, ErrorBoundary, ProviderPicker, DevFaultPanel
   index.css               design tokens (dark + light), layout, components
   themes/                 registry.ts, study/{state.ts, View.tsx}, echo/View.tsx
 ```
@@ -229,7 +229,7 @@ Frontend console: one line per request.
 | Var | Default | |
 |---|---|---|
 | `LLM_PROVIDER` | `mock` | `gemini` \| `groq` \| `openai` \| `mock`. A missing key for the primary fails at startup |
-| `LLM_FALLBACK` | — | Another provider; skipped with a warning if its key is missing |
+| `LLM_FALLBACK` | — | Another provider; skipped with a warning if its key is missing. Any other keyed provider is still selectable per request |
 | `GEMINI_API_KEY` / `GROQ_API_KEY` / `OPENAI_API_KEY` | — | |
 | `GEMINI_MODEL` / `GROQ_MODEL` / `OPENAI_MODEL` | `gemini-3.5-flash-lite` / `openai/gpt-oss-120b` / `gpt-5.4-mini` | Picked by measured latency and reliability (Nov 2026) |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated |
@@ -239,7 +239,7 @@ Frontend console: one line per request.
 
 Frontend: `VITE_API_URL` (default `http://localhost:8000`).
 
-**Choosing the model is server-side only.** `LLM_PROVIDER`, `LLM_FALLBACK` and `*_MODEL` decide what every request uses. The client can't choose a provider or model: that keeps cost under the operator's control, and the endpoint can't be used to reach an arbitrary model on our keys. The UI shows which provider and model answered in the result footer. The only per-request switch is the dev **Fault injection** dropdown, which routes to the mock provider and only when `ALLOW_FAULTS=true`.
+**Choosing the model.** `LLM_PROVIDER` then `LLM_FALLBACK` is the default chain. Every other provider whose key is set can also be selected, and `GET /providers` lists them (id, title, model; never keys). The **Model** dropdown beside Generate sends one of those ids as `providerId`. The chosen provider goes first, with the default chain behind it as fallback. The model for each provider is still fixed by `*_MODEL`, so a client can only pick among providers the operator has keyed, never an arbitrary model. An unknown id, or one without a key, is a 422 `input` error. In mock mode only `mock` is accepted. The dropdown is hidden when fewer than two providers are available, and disabled while dev **Fault injection** is on, because faults always route to the mock. The result footer shows which provider and model actually answered.
 
 ## Deploy
 
