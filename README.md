@@ -17,7 +17,7 @@ Design docs: [main-problem.md](main-problem.md) (problem and failure taxonomy) a
 Needs Node 20+ and [uv](https://docs.astral.sh/uv/). uv installs Python 3.12 itself.
 
 ```bash
-git clone https://github.com/mr-raj12/flam-ai-response-asgn && cd flam-ai-response-asgn
+git clone https://github.com/satyambitm/flam-ai-response-asgn && cd flam-ai-response-asgn
 
 # 1. backend (http://localhost:8000)
 cd backend
