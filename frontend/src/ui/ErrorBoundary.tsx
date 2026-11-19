@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { StateIcon } from "./StateIcon";
 
 interface Props {
   /** Changing this clears a caught error (e.g. a new result arrived). */
@@ -31,12 +32,15 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="card error" role="alert">
-        <h2>Couldn't display this result</h2>
-        <p className="muted">The data arrived, but this view failed to render it.</p>
-        <button type="button" className="primary" onClick={this.props.onRetry}>
-          Retry
-        </button>
+      <div className="card error state-card" role="alert">
+        <StateIcon kind="error" />
+        <div className="state-body">
+          <h2>Couldn't display this result</h2>
+          <p className="muted">The data arrived, but this view failed to render it.</p>
+          <button type="button" className="primary" onClick={this.props.onRetry}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

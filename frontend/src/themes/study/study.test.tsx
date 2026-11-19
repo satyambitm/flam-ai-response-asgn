@@ -159,3 +159,14 @@ describe("StudyView", () => {
     expect(screen.getByRole("status", { name: "Score: 1 out of 1" })).toBeInTheDocument();
   });
 });
+
+describe("StudyView mode tabs", () => {
+  it("switches mode with the arrow keys", async () => {
+    render(<StudyView data={DATA} />);
+    screen.getByRole("tab", { name: "Flashcards (3)" }).focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Quiz (2)" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "Quiz" })).toBeInTheDocument();
+    expect(screen.getByText(/Question 1 of 2/)).toBeInTheDocument();
+  });
+});

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { type AppError, ERROR_TITLES } from "../core/errors";
+import { StateIcon } from "./StateIcon";
 
 interface Props {
   error: AppError;
@@ -9,17 +10,20 @@ interface Props {
 export function ErrorView({ error, onRetry }: Props) {
   const wait = useCountdown(error.retryAfter ?? 0);
   return (
-    <div className="card error" role="alert">
-      <h2>{ERROR_TITLES[error.kind]}</h2>
-      <p>{error.message}</p>
-      {(error.kind === "input" || error.kind === "blocked") && (
-        <p className="muted">Edit your text above and submit again.</p>
-      )}
-      {error.retryable && (
-        <button type="button" className="primary" onClick={onRetry} disabled={wait > 0}>
-          {wait > 0 ? `Retry in ${wait}s` : "Retry"}
-        </button>
-      )}
+    <div className="card error state-card" role="alert">
+      <StateIcon kind="error" />
+      <div className="state-body">
+        <h2>{ERROR_TITLES[error.kind]}</h2>
+        <p>{error.message}</p>
+        {(error.kind === "input" || error.kind === "blocked") && (
+          <p className="muted">Edit your notes and generate again.</p>
+        )}
+        {error.retryable && (
+          <button type="button" className="primary" onClick={onRetry} disabled={wait > 0}>
+            {wait > 0 ? `Retry in ${wait}s` : "Retry"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

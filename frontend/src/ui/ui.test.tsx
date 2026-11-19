@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../core/api";
@@ -9,6 +10,7 @@ import { ErrorView } from "./ErrorView";
 import { InputPanel } from "./InputPanel";
 import { LoadingView, WAKE_HINT_AFTER_MS } from "./LoadingView";
 import { ProviderPicker } from "./ProviderPicker";
+import { Segmented } from "./Segmented";
 import { Workspace } from "./Workspace";
 
 vi.mock("../core/api", async (orig) => ({ ...(await orig<typeof import("../core/api")>()), generate: vi.fn() }));
@@ -65,7 +67,7 @@ describe("ErrorView", () => {
   it.each(["input", "blocked"] as const)("has no retry for %s errors and points at the input", (kind) => {
     render(<ErrorView error={{ kind, message: "x", retryable: false }} onRetry={() => {}} />);
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.getByText(/Edit your text above/)).toBeInTheDocument();
+    expect(screen.getByText(/Edit your notes/)).toBeInTheDocument();
   });
 
   it("counts down retryAfter before enabling retry", () => {
@@ -191,5 +193,54 @@ describe("ProviderPicker", () => {
   it("is disabled while fault injection routes to the mock", () => {
     render(<ProviderPicker options={[...OPTIONS]} value="groq" onChange={() => {}} locked />);
     expect(screen.getByRole("combobox", { name: "Model" })).toBeDisabled();
+  });
+});
+
+describe("Segmented", () => {
+  const OPTIONS = [
+    { value: "a", label: "Alpha" },
+    { value: "b", label: "Beta" },
+    { value: "c", label: "Gamma" },
+  ];
+
+  function Harness() {
+    const [value, setValue] = useState("a");
+    return <Segmented label="Pick" options={OPTIONS} value={value} onChange={setValue} />;
+  }
+
+  it("selects on click and keeps only the selected tab in the tab order", async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole("tab", { name: "Beta" }));
+    expect(screen.getByRole("tab", { name: "Beta" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Alpha" })).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("moves selection and focus with arrows, wrapping, and Home/End", async () => {
+    render(<Harness />);
+    screen.getByRole("tab", { name: "Alpha" }).focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("tab", { name: "Gamma" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Gamma" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{Home}");
+    expect(screen.getByRole("tab", { name: "Alpha" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Beta" })).toHaveFocus();
+  });
+});
+
+describe("Welcome", () => {
+  const THEME = { id: "echo", title: "Echo", inputHint: "Type here", maxInputChars: 100 };
+  const INTRO = { title: "Make a list", body: "Any text.", examples: ["Groceries for the week"] };
+  const Echo = defineView<components["schemas"]["EchoData"]>(({ data }) => <h3>{data.title}</h3>);
+
+  it("fills the input from an example without sending anything", async () => {
+    render(<Workspace theme={THEME} View={Echo} fault={null} provider={null} intro={INTRO} />);
+    expect(screen.getByRole("heading", { name: "Make a list" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Groceries for the week" }));
+    expect(screen.getByRole("textbox")).toHaveValue("Groceries for the week");
+    expect(screen.getByRole("textbox")).toHaveFocus();
+    expect(generateMock).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 });

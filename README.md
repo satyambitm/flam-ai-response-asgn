@@ -6,7 +6,7 @@ The interesting part is the generic module underneath it. Any theme (study, reci
 
 - **Backend:** FastAPI + Pydantic v2 (Python 3.12). Gemini, Groq and OpenAI via their official SDKs, with fallback.
 - **Frontend:** React 19 + TypeScript + Vite. A hand-written state machine; no React Query or Redux.
-- **Tests:** 187 pytest + 66 Vitest.
+- **Tests:** 187 pytest + 70 Vitest.
 
 Design docs: [main-problem.md](main-problem.md) (problem and failure taxonomy) and [plan.md](plan.md) (decisions and contract).
 
@@ -49,12 +49,12 @@ npm test                          # both suites, no lint
 Structured AI   ( Study assistant | Echo )                  Fault injection ▾
 
 ┌─ your notes ──────────────┐    Cellular respiration
-│ serif textarea            │    summary…
+│ textarea                  │    summary…
 │                           │    ( Flashcards 6 | Quiz 4 )
 │                           │    1 of 6 known                  ▬▬ ▬ ▬  ▬ ▬ ▬
-│ 234 / 4,000    [Generate] │    ┌ Glycolysis ─────────── 2 / 6 ┐┐┐  paper index card,
-└───────────────────────────┘    │ Where does glycolysis occur? │││  red header rule,
-  sticky on desktop              │ ──────────────────────────── │││  text on blue rules
+│ 234 / 4,000    [Generate] │    ┌ Glycolysis ─────────── 2 / 6 ┐┐┐  raised card,
+└───────────────────────────┘    │ Where does glycolysis occur? │││  section tag,
+  sticky on desktop              │ ──────────────────────────── │││  lifts on hover
                                  └──────────────────────────────┘┘┘
                                  [‹]  [Still learning]  [Got it]  [›]
                                  Show a hint    Space flips, ← → move, H hints
@@ -62,13 +62,14 @@ Structured AI   ( Study assistant | Echo )                  Fault injection ▾
 ```
 
 - **Layout:** notes on the left (sticky) and the result on the right from 960 px. Below that it's one column, verified at 360 px with no horizontal scroll.
-- **Palette:** "dusk": a warm dark desk with a pale lichen accent for actions and correct answers, ember for focus and "still learning", rose for wrong. A full light palette follows `prefers-color-scheme`. All colours are tokens at the top of [`frontend/src/index.css`](frontend/src/index.css).
-- **Study material is paper.** Cards, quiz sheets and result slips share one paper stock (with a faint SVG grain) and ink colours. A `.paper` class re-points the interface tokens at ink, so buttons and verdicts on paper need no special cases. Quiz scores are marked in red pen.
-- **Type:** Schibsted Grotesk for the interface and Newsreader (serif) for study content: notes, card faces and quiz questions. The scale is a major third on a 16 px base. On cards every line is exactly one rule tall, so the text sits on the blue rules.
-- **Flashcards:** a ruled index card with the section name on its red header line. The back is unruled, with the answer and a line of detail in pencil italic. It has a real 3D flip, with both faces in one grid cell so the card is as tall as its longer side. With a mouse, the deck leans toward the pointer: the cards beneath sit deeper in 3D, so they move against the top card (parallax), and a highlight follows the lean. CSS variables are written straight from the pointer, so moving it never re-renders React. Pips come in one run per section: green known, ember still learning. Marking a card moves to the next card without a verdict, wrapping round to skipped ones. When every card in a pass has one, a summary offers the cards still being learned. Keys: Space flips, ← → move, H shows the hint.
-- **Quiz:** one question sheet at a time, marked as soon as you answer. Options are answer bubbles: a tick on the right one, a cross on yours if it's wrong, and a note under every option saying why it's right or why it's tempting. The question's key idea follows, then Next. Each question shows the kind of thinking it asks for (Recall, Apply, Analyze). Number keys pick options, and focus moves to Next, then to the new sheet. The results slip has the score ringed in red pen (the page's one unprompted animation) and a breakdown by skill. Each missed question shows your answer struck through above the right one.
-- **States:** a dashed placeholder before the first request, a skeleton with an elapsed-time counter and Cancel while loading, error cards with Retry or a 429 countdown, and an empty state with a tip.
-- **Accessibility:** visible focus everywhere, a live region that announces each state change, focus moves to the result when a request finishes, aria-labels on the card and icon buttons, and `prefers-reduced-motion` turns off the flip and deal animations.
+- **Palette:** a quiet notes-app look. White pages with warm-gray ink, flat light-gray surfaces instead of borders, black for the one primary action, and muted tag colours for state: green known/correct, orange still learning, red wrong, purple for skill tags. Focus is a soft blue ring. A full dark palette follows `prefers-color-scheme`. All colours are tokens at the top of [`frontend/src/index.css`](frontend/src/index.css).
+- **Study material sits on raised blocks.** Cards, quiz sheets and result slips share one `.paper` surface and shadow; hints, details and takeaways are gray callouts. The quiz score is ringed in red.
+- **Type:** Inter throughout. Page titles are large, bold and tightly tracked; everything else is regular or semibold. The scale is a major third on a 16 px base.
+- **Flashcards:** a raised card with the section name as a tag in its header. The back has the answer and a line of detail in a gray callout. It has a real 3D flip, with both faces in one grid cell so the card is as tall as its longer side. With a mouse, the deck leans toward the pointer: the cards beneath sit deeper in 3D, so they move against the top card (parallax), and a highlight follows the lean. CSS variables are written straight from the pointer, so moving it never re-renders React. Pips come in one run per section: green known, ember still learning. Marking a card moves to the next card without a verdict, wrapping round to skipped ones. When every card in a pass has one, a summary offers the cards still being learned. Keys: Space flips, ← → move, H shows the hint.
+- **Quiz:** one question sheet at a time, marked as soon as you answer. Options are list rows with a lettered box: a tick on the right one, a cross on yours if it's wrong, and a note under every option saying why it's right or why it's tempting. The question's key idea follows, then Next. Each question shows the kind of thinking it asks for (Recall, Apply, Analyze). Number keys pick options, and focus moves to Next, then to the new sheet. The results slip has the score ringed in red (the page's one unprompted animation) and a breakdown by skill. Each missed question shows your answer struck through above the right one.
+- **First run:** the result pane explains what you get and offers example topics as chips. A chip fills the notes box. Nothing is sent until you choose Generate.
+- **States:** a skeleton shaped like the result, under a shimmering status line with an elapsed-time counter and Cancel, while loading; error cards with Retry or a 429 countdown, and an empty state with a tip.
+- **Accessibility:** visible focus everywhere, a live region that announces each state change, focus moves to the result when a request finishes, aria-labels on the card and icon buttons, mode and theme switches that follow the WAI-ARIA tabs pattern (arrow keys, Home/End, roving tabindex), and `prefers-reduced-motion` turns off the flip and deal animations.
 
 ---
 
@@ -316,6 +317,7 @@ Built with **Claude Code (Claude Opus 5.5)** as a pair programmer:
   - Gemini rejects server deadlines under 10 s, which broke late repairs.
   - `gemini-2.5-flash` is retired for new keys.
   - A race test that only exercised the status check, not the requestId check.
+- **21st.dev MCP** was used to find UI patterns (segmented control with a sliding thumb, empty state with suggestion chips, shimmering loading text) and the GitHub mark from svgl. The components are shadcn/Tailwind, so they were re-implemented in this app's own CSS tokens instead of installed.
 - **Model defaults and prices** were chosen from live measurements and public pricing pages.
 
 ## Limitations

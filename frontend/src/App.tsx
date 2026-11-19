@@ -7,7 +7,7 @@ import {
   type ProvidersInfo,
   type ThemesResult,
 } from "./core/api";
-import { VIEWS } from "./themes/registry";
+import { DEV_ONLY, INTROS, VIEWS } from "./themes/registry";
 import { DevFaultPanel } from "./ui/DevFaultPanel";
 import { ErrorView } from "./ui/ErrorView";
 import { LoadingView } from "./ui/LoadingView";
@@ -25,7 +25,10 @@ export default function App() {
   const [chosen, setChosen] = useState<ProviderId | null>(null);
   const provider = chosen ?? providers?.default ?? null;
 
-  const available = themes.status === "done" && themes.result.ok ? themes.result.data.filter((t) => VIEWS[t.id]) : [];
+  const available =
+    themes.status === "done" && themes.result.ok
+      ? themes.result.data.filter((t) => VIEWS[t.id] && (SHOW_DEV_PANEL || !DEV_ONLY.has(t.id)))
+      : [];
   const active = available.find((t) => t.id === activeId) ?? available[0];
 
   return (
@@ -45,6 +48,7 @@ export default function App() {
           key={active.id}
           theme={active}
           View={VIEWS[active.id]}
+          intro={INTROS[active.id]}
           fault={fault}
           provider={provider}
           picker={

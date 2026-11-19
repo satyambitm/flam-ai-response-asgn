@@ -1,15 +1,16 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Fault, ProviderId, ThemeInfo } from "../core/api";
 import { ERROR_TITLES } from "../core/errors";
 import { formatUsage } from "../core/format";
 import type { GenState } from "../core/state";
 import { useGenerate } from "../core/useGenerate";
-import type { ThemeView } from "../themes/registry";
+import type { ThemeIntro, ThemeView } from "../themes/registry";
 import { EmptyView } from "./EmptyView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ErrorView } from "./ErrorView";
 import { InputPanel } from "./InputPanel";
 import { LoadingView } from "./LoadingView";
+import { Welcome } from "./Welcome";
 
 interface Props {
   theme: ThemeInfo;
@@ -18,12 +19,16 @@ interface Props {
   /** null: the server's configured chain. */
   provider: ProviderId | null;
   picker?: ReactNode;
+  /** First-run panel content; a plain placeholder if the theme has none. */
+  intro?: ThemeIntro;
 }
 
 /** Generic input → request → result flow for one theme. Mount with key={theme.id} to reset on switch. */
-export function Workspace({ theme, View, fault, provider, picker }: Props) {
+export function Workspace({ theme, View, fault, provider, picker, intro }: Props) {
   const { state, generate, retry, cancel } = useGenerate(theme.id);
   const resultRef = useRef<HTMLElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [draft, setDraft] = useState("");
   const settledId = state.status === "idle" || state.status === "loading" ? null : state.requestId;
 
   useEffect(() => {
@@ -37,14 +42,26 @@ export function Workspace({ theme, View, fault, provider, picker }: Props) {
         maxChars={theme.maxInputChars}
         onSubmit={(input) => generate(input, { fault: fault ?? undefined, provider: provider ?? undefined })}
         controls={picker}
+        value={draft}
+        onChange={setDraft}
+        textareaRef={inputRef}
       />
       <p className="visually-hidden" aria-live="polite">
         {announce(state)}
       </p>
       <section ref={resultRef} tabIndex={-1} className="result" aria-label="Result">
-        {state.status === "idle" && (
-          <p className="placeholder">Paste your text and choose Generate. The result appears here.</p>
-        )}
+        {state.status === "idle" &&
+          (intro ? (
+            <Welcome
+              intro={intro}
+              onPick={(example) => {
+                setDraft(example);
+                inputRef.current?.focus();
+              }}
+            />
+          ) : (
+            <p className="placeholder">Paste your text and choose Generate. The result appears here.</p>
+          ))}
         {state.status === "loading" && <LoadingView startedAt={state.startedAt} onCancel={cancel} />}
         {state.status === "error" && <ErrorView key={state.requestId} error={state.error} onRetry={retry} />}
         {state.status === "empty" && <EmptyView message={state.message} onRetry={retry} />}
@@ -53,7 +70,7 @@ export function Workspace({ theme, View, fault, provider, picker }: Props) {
             <ErrorBoundary resetKey={state.requestId} onRetry={retry}>
               <View key={state.requestId} data={state.data} />
             </ErrorBoundary>
-            <dl className="meta">
+            <dl className="meta" aria-label="Generation details">
               <div>
                 <dt>Model</dt>
                 <dd>

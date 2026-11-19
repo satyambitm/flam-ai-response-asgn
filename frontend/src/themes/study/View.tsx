@@ -4,6 +4,7 @@ import {
   type PointerEvent,
   type ReactNode,
   useEffect,
+  useId,
   useMemo,
   useReducer,
   useRef,
@@ -19,6 +20,7 @@ import {
   type StudyState,
   wrongIds,
 } from "./state";
+import { Segmented } from "../../ui/Segmented";
 
 type Card = StudySet["flashcards"][number];
 type Question = StudySet["quiz"][number];
@@ -27,22 +29,34 @@ const SKILL: Record<Skill, string> = { recall: "Recall", apply: "Apply", analyze
 
 export function StudyView({ data }: { data: StudySet }) {
   const [state, dispatch] = useReducer(studyReducer, data, initStudy);
+  const panelId = useId();
 
   return (
     <article className="study">
       <header className="study-head">
+        <p className="crumbs" aria-hidden="true">
+          Study <span>/</span> {data.flashcards.length} cards <span>/</span> {data.quiz.length} questions
+        </p>
         <h2>{data.topic}</h2>
         {data.summary && <p>{data.summary}</p>}
       </header>
-      <div className="segmented" role="tablist" aria-label="Study mode">
-        <ModeTab mode="cards" state={state} dispatch={dispatch} label={`Flashcards (${data.flashcards.length})`} />
-        <ModeTab mode="quiz" state={state} dispatch={dispatch} label={`Quiz (${data.quiz.length})`} />
+      <Segmented
+        label="Study mode"
+        className="modes"
+        options={[
+          { value: "cards", label: `Flashcards (${data.flashcards.length})`, controls: panelId },
+          { value: "quiz", label: `Quiz (${data.quiz.length})`, controls: panelId },
+        ]}
+        value={state.mode}
+        onChange={(mode) => dispatch({ type: "mode", mode })}
+      />
+      <div id={panelId} role="tabpanel" aria-label={state.mode === "cards" ? "Flashcards" : "Quiz"}>
+        {state.mode === "cards" ? (
+          <Flashcards data={data} state={state} dispatch={dispatch} />
+        ) : (
+          <Quiz data={data} state={state} dispatch={dispatch} />
+        )}
       </div>
-      {state.mode === "cards" ? (
-        <Flashcards data={data} state={state} dispatch={dispatch} />
-      ) : (
-        <Quiz data={data} state={state} dispatch={dispatch} />
-      )}
     </article>
   );
 }
@@ -51,21 +65,6 @@ interface Part {
   data: StudySet;
   state: StudyState;
   dispatch: Dispatch<StudyAction>;
-}
-
-function ModeTab({ mode, label, state, dispatch }: Omit<Part, "data"> & { mode: StudyState["mode"]; label: string }) {
-  const active = state.mode === mode;
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className={active ? "segment active" : "segment"}
-      onClick={() => dispatch({ type: "mode", mode })}
-    >
-      {label}
-    </button>
-  );
 }
 
 /* flashcards */
