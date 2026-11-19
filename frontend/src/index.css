@@ -1,6 +1,7 @@
 /*
- * Dusk palette: warm dune surfaces, a pale lichen accent for actions and "correct",
- * ember for "where you are", rose for "wrong". Grotesk for interface, Newsreader for study content.
+ * Dusk palette: warm dune surfaces, a pale lichen accent for actions and "correct", ember for focus
+ * and "still learning", rose for "wrong". Study material is paper (see the study theme). Grotesk for
+ * interface, Newsreader for study content.
  * Type scale is a major third (1.25) on a 16px base.
  */
 :root {
@@ -16,8 +17,15 @@
   --ember: #f0a35e;
   --correct: #9fdcb4;
   --wrong: #f2958a;
-  --card-front: #342b23;
-  --card-back: #263a30;
+  /* paper, for everything you study from */
+  --paper: #efe6cf;
+  --paper-under: #d9cdb1;
+  --ink: #2a2119;
+  --pencil: #66594a;
+  --rule-blue: rgb(70 118 170 / 0.3);
+  --rule-red: rgb(196 72 60 / 0.75);
+  --grade: #c23b2e;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .24 0 0 0 0 .16 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 
   --step--1: 0.8rem;
   --step-0: 1rem;
@@ -51,8 +59,8 @@
     --ember: #b4611f;
     --correct: #1f7a4b;
     --wrong: #b3382c;
-    --card-front: #fffdf8;
-    --card-back: #e4f1e8;
+    --paper: #fffaee;
+    --paper-under: #ebe3d0;
     color-scheme: light;
   }
 }
@@ -544,7 +552,10 @@ button.link:hover:not(:disabled) {
   padding: 0;
 }
 
-/* study theme */
+/*
+ * study theme: everything you study from is paper on the desk. Index cards are ruled under a red header
+ * line; the quiz sheet and the result slips share the stock and ink, and the score is marked in red pen.
+ */
 
 .study {
   display: grid;
@@ -588,6 +599,27 @@ button.link:hover:not(:disabled) {
   color: var(--on-primary);
 }
 
+/* paper re-points the interface tokens at ink, so buttons and verdicts on it read on the stock */
+.paper,
+.face {
+  --text: var(--ink);
+  --muted: var(--pencil);
+  --line: rgb(42 33 25 / 0.14);
+  --line-strong: rgb(42 33 25 / 0.32);
+  --primary: #24493a;
+  --on-primary: #f4eddb;
+  --correct: #23704a;
+  --wrong: #b23a2e;
+
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image: var(--grain);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 1px 2px rgb(0 0 0 / 0.25),
+    0 22px 40px -22px rgb(0 0 0 / 0.7);
+}
+
 .flashcards {
   display: grid;
   gap: 20px;
@@ -603,126 +635,216 @@ button.link:hover:not(:disabled) {
   color: var(--muted);
 }
 
-/* one pip per card: green when known, ember for the current one */
+/* one pip per card, a run per section: green known, ember still learning, light where you are */
 .pips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px 12px;
+}
+
+.pips ol {
+  display: flex;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .pips li {
-  width: 18px;
+  width: 14px;
   height: 6px;
   border-radius: 3px;
   background: var(--line-strong);
+  transition: width 0.2s;
 }
 
 .pips li.known {
   background: var(--correct);
 }
 
-.pips li.current {
-  width: 28px;
+.pips li.learning {
   background: var(--ember);
 }
 
-/* the deck: cards still ahead show as offset edges behind the current one */
-.stack {
-  position: relative;
-  perspective: 1400px;
+.pips li.current {
+  width: 26px;
+  background: var(--text);
 }
 
+/* the deck, with room to the right and below for the cards underneath */
+.deck-space {
+  padding: 0 22px 22px 0;
+  perspective: 1100px;
+}
+
+.stack {
+  --lean-x: 0;
+  --lean-y: 0;
+
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--lean-y) * -7deg)) rotateY(calc(var(--lean-x) * 9deg));
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* cards still ahead sit deeper, so they slide against the top card as the deck leans */
 .stack::before,
 .stack::after {
   content: "";
   position: absolute;
   inset: 0;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--card-front);
-  opacity: 0;
+  border-radius: 6px;
+  background: var(--paper-under);
+  box-shadow: 0 16px 30px -18px rgb(0 0 0 / 0.6);
+  visibility: hidden;
 }
 
 .stack[data-ahead="1"]::before,
 .stack[data-ahead="2"]::before {
-  opacity: 0.55;
-  transform: translate(10px, 10px) rotate(1.2deg);
+  visibility: visible;
+  transform: translate3d(9px, 9px, -40px) rotate(1.4deg);
 }
 
 .stack[data-ahead="2"]::after {
-  opacity: 0.3;
-  transform: translate(20px, 20px) rotate(2.4deg);
+  visibility: visible;
+  filter: brightness(0.85);
+  transform: translate3d(18px, 17px, -80px) rotate(2.8deg);
 }
 
 .flashcard {
   position: relative;
-  z-index: 1;
   display: grid;
   width: 100%;
-  min-height: 260px;
   padding: 0;
   border: 0;
-  border-radius: 18px;
+  border-radius: 6px;
   background: none;
   font-weight: 400;
   text-align: left;
   transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
-  animation: deal 0.35s cubic-bezier(0.3, 0.7, 0.2, 1);
+  transition: transform 0.6s cubic-bezier(0.3, 0.7, 0.2, 1);
+  animation: deal 0.4s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
 .flashcard.flipped {
   transform: rotateY(180deg);
 }
 
+.flashcard:focus-visible {
+  outline-offset: 6px;
+}
+
 /* both faces share one grid cell so the card is as tall as its longer side */
 .face {
+  --rule: 1.875rem;
+
+  position: relative;
   grid-area: 1 / 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px 26px 28px;
-  border: 1px solid var(--line-strong);
-  border-radius: 18px;
-  background: var(--card-front);
-  box-shadow: 0 18px 40px -24px rgb(0 0 0 / 0.6);
+  gap: 12px;
+  min-height: 280px;
+  padding: 16px 26px 24px;
+  border-radius: 6px;
   backface-visibility: hidden;
 }
 
+/* light catching the card: the highlight follows the lean */
+.face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    90% 70% at calc(50% + var(--lean-x) * 90%) calc(20% + var(--lean-y) * 90%),
+    rgb(255 255 255 / 0.28),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
 .face.back {
-  background: var(--card-back);
   transform: rotateY(180deg);
 }
 
-/* the rule under the heading line of a real index card */
-.face-side {
-  padding-bottom: 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ember) 55%, transparent);
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: var(--step-0);
-  color: var(--muted);
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--rule-red);
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--pencil);
+  font-variant-numeric: tabular-nums;
 }
 
-.face-text {
-  margin: auto 0;
+/* written from the top line down, as on a real card: every line is one rule tall, so text sits on the rules */
+.card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--rule);
+  padding: var(--rule) 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 calc(var(--rule) - 1px),
+    var(--rule-blue) calc(var(--rule) - 1px) var(--rule)
+  );
+  background-position-y: -4px;
+}
+
+/* the back of an index card is unruled, so the answer can sit in the middle */
+.face.back .card-body {
+  justify-content: center;
+  background: none;
+}
+
+.card-main {
   font-family: var(--serif);
-  font-size: var(--step-2);
-  line-height: 1.3;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: var(--rule);
   text-wrap: pretty;
 }
 
-.flashcard:focus-visible {
-  outline-offset: 6px;
+.card-note {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-style: italic;
+  line-height: var(--rule);
+  color: var(--pencil);
+  text-wrap: pretty;
+}
+
+.face.front .card-note {
+  animation: write 0.3s ease-out;
+}
+
+@media (max-width: 520px) {
+  .face {
+    --rule: 1.75rem;
+
+    min-height: 240px;
+    padding: 14px 18px 18px;
+  }
+
+  .card-main {
+    font-size: 1.3125rem;
+  }
 }
 
 @keyframes deal {
   from {
     opacity: 0;
-    transform: translate(14px, 10px) rotate(1.5deg);
+    transform: translate(16px, 12px) rotate(2deg);
+  }
+}
+
+@keyframes write {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 
@@ -733,7 +855,7 @@ button.link:hover:not(:disabled) {
   gap: 8px;
   width: 100%;
   max-width: 440px;
-  margin: 8px auto 0;
+  margin: 0 auto;
 }
 
 .deck-controls button:not(.icon) {
@@ -752,78 +874,155 @@ button.link:hover:not(:disabled) {
   }
 }
 
-.flashcards .kbd-hint {
-  text-align: center;
-}
-
 .deck-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   justify-content: center;
   gap: 8px 24px;
   font-size: var(--step--1);
 }
 
-.quiz {
+/* slips: the end-of-pass and end-of-quiz sheets */
+
+.slip {
   display: grid;
-  gap: 20px;
+  gap: 8px;
+  padding: 26px 28px 24px;
+  border-radius: 6px;
+  transform: rotate(-0.4deg);
+  animation: deal 0.4s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
-.quiz > ol {
+.slip-title {
+  font-family: var(--serif);
+  font-size: var(--step-2);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.slip-text {
+  color: var(--pencil);
+}
+
+.slip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* quiz: one question sheet at a time */
+
+.quiz {
   display: grid;
-  gap: 28px;
+  gap: 16px;
+}
+
+.quiz-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+.tally {
+  display: flex;
+  flex: 0 1 240px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
-  counter-reset: question;
 }
 
-.quiz > ol > li {
-  counter-increment: question;
+.tally li {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-strong);
 }
 
-.quiz fieldset {
+.tally li.current {
+  background: var(--text);
+}
+
+.tally li.correct {
+  background: var(--correct);
+}
+
+.tally li.wrong {
+  background: var(--wrong);
+}
+
+.question {
+  display: grid;
+  gap: 16px;
+  padding: 24px 26px;
+  border-radius: 6px;
+  animation: deal 0.35s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+/* focused by script when a sheet replaces the control that led to it; the sheet itself needs no ring */
+.question:focus,
+.results:focus {
+  outline: none;
+}
+
+.question fieldset {
   display: grid;
   gap: 8px;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
   counter-reset: option;
 }
 
-.quiz legend {
-  display: flex;
-  gap: 12px;
+.question legend {
+  display: grid;
+  gap: 8px;
   margin-bottom: 12px;
   padding: 0;
+}
+
+/* what kind of thinking the question asks for */
+.skill {
+  justify-self: start;
+  padding: 1px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--pencil);
+}
+
+.question-text {
   font-family: var(--serif);
-  font-size: var(--step-1);
+  font-size: 1.375rem;
+  font-weight: 500;
   line-height: 1.35;
+  text-wrap: pretty;
 }
 
-.quiz legend::before {
-  content: counter(question);
-  flex: none;
-  min-width: 1.4em;
-  color: var(--ember);
-  font-variant-numeric: tabular-nums;
-}
-
+/* options are answer bubbles: the chosen one fills with ink */
 .option {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-height: 48px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
+  border-radius: 10px;
   cursor: pointer;
   counter-increment: option;
   transition:
     border-color 0.15s,
-    background-color 0.15s;
+    background-color 0.15s,
+    opacity 0.2s;
 }
 
 .option::before {
@@ -833,11 +1032,17 @@ button.link:hover:not(:disabled) {
   place-items: center;
   width: 28px;
   height: 28px;
-  border: 1px solid var(--line-strong);
+  border: 1.5px solid var(--line-strong);
   border-radius: 50%;
   font-size: var(--step--1);
   font-weight: 700;
-  color: var(--muted);
+  color: var(--pencil);
+}
+
+.option-text {
+  display: grid;
+  gap: 2px;
+  padding-top: 3px;
 }
 
 .option input {
@@ -848,17 +1053,7 @@ button.link:hover:not(:disabled) {
 
 .option:hover {
   border-color: var(--line-strong);
-}
-
-/* :where keeps "selected" weaker than the correct / wrong verdicts below */
-.option:where(:has(input:checked)) {
-  border-color: var(--text);
-}
-
-.option:where(:has(input:checked))::before {
-  border-color: var(--text);
-  background: var(--text);
-  color: var(--base);
+  background: rgb(42 33 25 / 0.04);
 }
 
 .option:has(input:focus-visible) {
@@ -870,78 +1065,197 @@ fieldset:disabled .option {
   cursor: default;
 }
 
-.option.correct {
+fieldset:disabled .option:hover {
+  border-color: var(--line);
+  background: none;
+}
+
+.option.correct,
+fieldset:disabled .option.correct:hover {
   border-color: var(--correct);
-  background: color-mix(in srgb, var(--correct) 12%, var(--surface));
+  background: color-mix(in srgb, var(--correct) 10%, transparent);
 }
 
 .option.correct::before {
+  content: "✓";
   border-color: var(--correct);
   background: var(--correct);
-  color: var(--base);
+  color: var(--paper);
 }
 
-.option.wrong {
+.option.wrong,
+fieldset:disabled .option.wrong:hover {
   border-color: var(--wrong);
-  background: color-mix(in srgb, var(--wrong) 12%, var(--surface));
+  background: color-mix(in srgb, var(--wrong) 9%, transparent);
 }
 
 .option.wrong::before {
+  content: "✕";
   border-color: var(--wrong);
   background: var(--wrong);
-  color: var(--base);
+  color: var(--paper);
 }
 
-.explanation {
-  max-width: 62ch;
-  margin-top: 10px;
-  padding-left: calc(1.4em + 12px);
+.option.other {
+  opacity: 0.72;
+}
+
+.rationale {
   font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--pencil);
+  animation: write 0.3s ease-out;
 }
 
-.quiz-footer {
+.question-after {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+  gap: 16px;
 }
 
-.quiz-footer .actions {
-  display: flex;
-  flex-wrap: wrap;
+.takeaway {
+  flex: 1 1 280px;
+  max-width: 62ch;
+  padding-left: 14px;
+  border-left: 2px solid var(--rule-red);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+.question-after button {
+  margin-left: auto;
+}
+
+/* results: the score ringed in red pen beside the per-skill breakdown */
+
+.results {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 24px;
+}
+
+.results > :is(.missed, .slip-actions) {
+  grid-column: 1 / -1;
+}
+
+.grade {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 104px;
+}
+
+.grade-score {
+  font-family: var(--serif);
+  font-size: 3.25rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--grade);
+  font-variant-numeric: lining-nums;
+}
+
+.grade-score span {
+  font-size: 1.5rem;
+}
+
+.grade-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--grade);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: ink 0.9s 0.3s cubic-bezier(0.6, 0.1, 0.3, 1) backwards;
+}
+
+@keyframes ink {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+.results-body {
+  display: grid;
   gap: 10px;
 }
 
-/* one segment per question in the round: green right, rose wrong */
-.tally {
+.by-skill {
   display: flex;
-  flex-basis: 100%;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 4px 24px;
   margin: 0;
+}
+
+.by-skill dt {
+  font-size: var(--step--1);
+  color: var(--pencil);
+}
+
+.by-skill dd {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--step-1);
+  font-variant-numeric: lining-nums;
+}
+
+.missed {
+  display: grid;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.tally li {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
+.missed li {
+  display: grid;
+  gap: 2px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
 }
 
-.tally li.correct {
-  background: var(--correct);
+.missed-q {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
 }
 
-.tally li.wrong {
-  background: var(--wrong);
+/* marked the way a teacher does: your answer struck through, the right one beneath it */
+.missed-chosen {
+  color: var(--pencil);
+  text-decoration-color: var(--grade);
+  text-decoration-thickness: 1.5px;
 }
 
-.score {
-  font-size: var(--step-1);
+.missed-right {
   font-weight: 700;
+  color: var(--correct);
+}
+
+@media (max-width: 520px) {
+  .question {
+    padding: 18px;
+  }
+
+  .results {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack {
+    transform: none;
+  }
+
+  .face::after {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

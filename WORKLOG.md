@@ -23,5 +23,6 @@ They measure the AI-assisted build session only. Reading the assignment, decidin
 | 12 | README | 00:50 | ~7m | |
 | 14 | UI redesign: dusk palette, 3D flashcard deck, quiz verdicts, two-pane layout | 01:07 | ~12m | Browser-verified with Claude in Chrome (desktop, 360px, light/dark); found and fixed verdict-vs-selected specificity and mobile control wrap |
 | 15 | Provider picker: GET /providers, per-request `providerId`, Model dropdown | 01:32 | ~10m | Live-checked Groq, Gemini and OpenAI via curl and the UI; found the --reload server hadn't picked up the new route and restarted it |
+| 16 | Richer study content (sections, hints, details, per-option rationales, skill tags, option shuffle) and a paper redesign: ruled index cards with pointer parallax, one-question quiz sheets, red-pen results | 01:48 | ~35m | Live-checked content from Groq, Gemini and OpenAI; browser-verified desktop and 375px; fixed text-off-rules alignment, duplicate card counter and a ref read during render |
 
 **Build session total: ~1h25m** (23:25 → ~00:50).

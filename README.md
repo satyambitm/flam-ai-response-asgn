@@ -47,19 +47,22 @@ Structured AI   ( Study assistant | Echo )                  Fault injection ▾
 ┌─ your notes ──────────────┐    Cellular respiration
 │ serif textarea            │    summary…
 │                           │    ( Flashcards 6 | Quiz 4 )
-│                           │    Card 2 of 6, 1 known               ▬ ▬▬ ▬ ▬ ▬
-│ 234 / 4,000    [Generate] │    ┌─ Question ─────────────────────┐┐┐
-└───────────────────────────┘    │ Where does glycolysis occur?   │││ cards ahead
-  sticky on desktop              └────────────────────────────────┘┘┘
+│                           │    1 of 6 known                  ▬▬ ▬ ▬  ▬ ▬ ▬
+│ 234 / 4,000    [Generate] │    ┌ Glycolysis ─────────── 2 / 6 ┐┐┐  paper index card,
+└───────────────────────────┘    │ Where does glycolysis occur? │││  red header rule,
+  sticky on desktop              │ ──────────────────────────── │││  text on blue rules
+                                 └──────────────────────────────┘┘┘
                                  [‹]  [Still learning]  [Got it]  [›]
+                                 Show a hint    Space flips, ← → move, H hints
                                  Model        Time    Usage
 ```
 
 - **Layout:** notes on the left (sticky) and the result on the right from 960 px. Below that it's one column, verified at 360 px with no horizontal scroll.
-- **Palette:** "dusk": a warm dark base with a pale lichen accent for actions and correct answers, ember for "where you are" (current card, focus ring, question numbers), rose for wrong. A full light palette follows `prefers-color-scheme`. All colours are tokens at the top of [`frontend/src/index.css`](frontend/src/index.css).
-- **Type:** Schibsted Grotesk for the interface and Newsreader (serif) for study content: notes, card faces and quiz questions. The scale is a major third on a 16 px base.
-- **Flashcards:** a real 3D flip, with both faces in one grid cell so the card is as tall as its longer side. Offset card edges show how many cards are still ahead. One pip per card shows green when known and ember for the current one. Each new card is keyed so it mounts question-side up and never shows its answer while turning back. Keys: Space flips, ← → move.
-- **Quiz:** lettered options (CSS counters, native radios kept for a11y). After checking, the right and wrong verdicts override the "selected" style, and a tally bar shows one segment per question.
+- **Palette:** "dusk": a warm dark desk with a pale lichen accent for actions and correct answers, ember for focus and "still learning", rose for wrong. A full light palette follows `prefers-color-scheme`. All colours are tokens at the top of [`frontend/src/index.css`](frontend/src/index.css).
+- **Study material is paper.** Cards, quiz sheets and result slips share one paper stock (with a faint SVG grain) and ink colours. A `.paper` class re-points the interface tokens at ink, so buttons and verdicts on paper need no special cases. Quiz scores are marked in red pen.
+- **Type:** Schibsted Grotesk for the interface and Newsreader (serif) for study content: notes, card faces and quiz questions. The scale is a major third on a 16 px base. On cards every line is exactly one rule tall, so the text sits on the blue rules.
+- **Flashcards:** a ruled index card with the section name on its red header line. The back is unruled, with the answer and a line of detail in pencil italic. It has a real 3D flip, with both faces in one grid cell so the card is as tall as its longer side. With a mouse, the deck leans toward the pointer: the cards beneath sit deeper in 3D, so they move against the top card (parallax), and a highlight follows the lean. CSS variables are written straight from the pointer, so moving it never re-renders React. Pips come in one run per section: green known, ember still learning. Marking a card moves to the next card without a verdict, wrapping round to skipped ones. When every card in a pass has one, a summary offers the cards still being learned. Keys: Space flips, ← → move, H shows the hint.
+- **Quiz:** one question sheet at a time, marked as soon as you answer. Options are answer bubbles: a tick on the right one, a cross on yours if it's wrong, and a note under every option saying why it's right or why it's tempting. The question's key idea follows, then Next. Each question shows the kind of thinking it asks for (Recall, Apply, Analyze). Number keys pick options, and focus moves to Next, then to the new sheet. The results slip has the score ringed in red pen (the page's one unprompted animation) and a breakdown by skill. Each missed question shows your answer struck through above the right one.
 - **States:** a dashed placeholder before the first request, a skeleton with an elapsed-time counter and Cancel while loading, error cards with Retry or a 429 countdown, and an empty state with a tip.
 - **Accessibility:** visible focus everywhere, a live region that announces each state change, focus moves to the result when a request finishes, aria-labels on the card and icon buttons, and `prefers-reduced-motion` turns off the flip and deal animations.
 
@@ -166,6 +169,12 @@ frontend/src/
 | Valid JSON, wrong shape (missing fields, `answerIndex` out of range…) | `invalid_shape`. The repair retry gets compact `path: message` errors | Same as above |
 | Valid but nothing useful (e.g. gibberish input) | `empty` | Empty state with a rephrasing tip |
 | Blank options or duplicates in a question | `normalize` drops the question instead of guessing (dropping options would shift `answerIndex`) | Fewer questions |
+| Right answer always in the same slot (models favour A/B) | `normalize` shuffles each question's options, carrying `answerIndex` and the per-option rationales with them | Answers spread across A–D |
+| Rationales missing, blank or not one per option | Rationales dropped and the question kept: a misaligned note would explain the wrong option | No per-option notes on that question |
+| Rationale starts with "Right:" / "Wrong:" | Lead-in stripped; the UI marks right and wrong itself | Clean note |
+| Unknown `skill` label | Falls back to `recall` instead of costing a repair | "Recall" tag |
+| Cards of one section scattered | `normalize` groups them, sections in first-seen order | Deck reads section by section |
+| Hint repeats the answer | Hint dropped | No "Show a hint" on that card |
 | Provider 5xx / timeout / network | Fallback provider tried; then `provider` / `timeout` | Retry |
 | Provider 429 on every provider | `rate_limited` with `retryAfter` | Countdown, then Retry |
 | Slow | Deadline: 25 s per call, 40 s total; client gives up at 45 s | Spinner, Cancel, "waking up the server" after 5 s |

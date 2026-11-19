@@ -134,6 +134,21 @@ export interface components {
             front: string;
             /** Back */
             back: string;
+            /**
+             * Hint
+             * @default
+             */
+            hint: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Section
+             * @default
+             */
+            section: string;
         };
         /** GenerateRequest */
         GenerateRequest: {
@@ -207,6 +222,17 @@ export interface components {
              * @default
              */
             explanation: string;
+            /**
+             * Rationales
+             * @default []
+             */
+            rationales: string[];
+            /**
+             * Skill
+             * @default recall
+             * @enum {string}
+             */
+            skill: "recall" | "apply" | "analyze";
         };
         /** StudySet */
         StudySet: {
