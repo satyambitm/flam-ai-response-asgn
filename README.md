@@ -1,6 +1,6 @@
 # Structured AI: study assistant
 
-Paste notes or name a topic. An LLM turns it into **flashcards and a multiple-choice quiz** that you can flip, mark, answer, score and re-test. It's not a chatbot: the model's output is validated JSON that drives a stateful UI.
+Paste notes or  name a topic. An LLM turns it into **flashcards and a multiple-choice quiz** that you can flip, mark, answer, score and re-test. It's not a chatbot: the model's output is validated JSON that drives a stateful UI.
 
 The interesting part is the generic module underneath it. Any theme (study, recipe, trip…) gets reliable structured output from an unreliable LLM. Malformed, truncated, wrong-shape, empty, slow, rate-limited and failed responses all become a typed, recoverable UI state. Stale responses never overwrite newer ones.
 
