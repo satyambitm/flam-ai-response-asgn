@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { ThemeInfo } from "../core/api";
 import { Segmented } from "./Segmented";
 
-const REPO_URL = "https://github.com/mr-raj12/flam-ai-response-asgn";
+const REPO_URL = "https://github.com/satyambitm/flam-ai-response-asgn";
 
 interface Props {
   themes: ThemeInfo[];
